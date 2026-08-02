@@ -143,7 +143,35 @@ def validate_tokenizer_compatibility(target_path: str, draft_path: str) -> Tuple
             f"BOS Token Mismatch: Target BOS ({tok_target.bos_token_id}) != Draft BOS ({tok_draft.bos_token_id})."
         )
 
-    # 4. Encoding Identity Sweep
+    # 4. Special Control Tokens Identity Check
+    common_control_tokens = [
+        "<|im_start|>", "<|im_end|>", "<|endoftext|>", "<|eot_id|>",
+        "<|start_header_id|>", "<|end_header_id|>", "<s>", "</s>", "<pad>"
+    ]
+    for token_str in common_control_tokens:
+        id_t = tok_target.convert_tokens_to_ids(token_str)
+        id_d = tok_draft.convert_tokens_to_ids(token_str)
+        # If token exists in target tokenizer, verify draft matches it
+        if id_t is not None and id_t != tok_target.unk_token_id:
+            if id_t != id_d:
+                errors.append(
+                    f"Control Token Mismatch for '{token_str}': Target ID ({id_t}) != Draft ID ({id_d})."
+                )
+
+    # 5. Chat Template Formatting Sweep
+    if hasattr(tok_target, "apply_chat_template") and hasattr(tok_draft, "apply_chat_template"):
+        try:
+            test_msg = [{"role": "user", "content": "spec_dec_check"}]
+            formatted_t = tok_target.apply_chat_template(test_msg, tokenize=False)
+            formatted_d = tok_draft.apply_chat_template(test_msg, tokenize=False)
+            if tok_target.encode(formatted_t) != tok_draft.encode(formatted_d):
+                errors.append(
+                    "Chat Template Formatting Mismatch: Target and Draft produce different token sequences for chat templates."
+                )
+        except Exception:
+            pass
+
+    # 6. Sample Encoding Identity Sweep
     sample_texts = [
         "def benchmark_test(): return 'speculative_decoding_test_123'",
         "The quick brown fox jumps over the lazy dog.",
@@ -160,6 +188,7 @@ def validate_tokenizer_compatibility(target_path: str, draft_path: str) -> Tuple
             break
 
     return len(errors) == 0, errors
+
 
 
 def validate_memory_footprint(
