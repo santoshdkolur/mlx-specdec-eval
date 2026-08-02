@@ -177,7 +177,8 @@ Explore our comprehensive technical documentation suite under `docs/`:
 
 ### 🤝 Feedback & Open Source Contributions
 
-We would love your feedback and contributions to make `mlx-specdec-eval` even better!
+I would love your feedback and contributions to make `mlx-specdec-eval` even better!
+
 
 If you run into issues, have ideas for new features (e.g., support for new quantization schemes, dynamic $K$ scheduling, or additional task domain prompts), or want to share benchmark results from your Mac:
 
