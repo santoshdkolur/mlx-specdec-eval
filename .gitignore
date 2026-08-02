@@ -1,0 +1,36 @@
+# Python & Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Local Model Downloads & Untracked Storage
+models/
+downloads/
+*.safetensors
+*.bin
+*.pt
+*.npz
+
+# Benchmark Reports & Temporary Output Artifacts
+results.json
+summary.md
+report.html
+custom_report.html
+*.json.log
+
+# Test & IDE Caches
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store
+.idea/
+.vscode/

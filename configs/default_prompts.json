@@ -1,0 +1,110 @@
+{
+  "code": [
+    {
+      "id": "code_quicksort",
+      "category": "code",
+      "prompt": "Write an efficient Python implementation of the Quicksort algorithm using in-place partitioning with detailed comments explaining the pivot selection strategy."
+    },
+    {
+      "id": "code_async_fetcher",
+      "category": "code",
+      "prompt": "Write a Python script using `aiohttp` and `asyncio` to asynchronously download multiple URLs concurrently with rate limiting, retries, and semaphore concurrency control."
+    },
+    {
+      "id": "code_avl_tree",
+      "category": "code",
+      "prompt": "Implement an AVL Tree (self-balancing binary search tree) in Python, including left and right rotation methods and tree height update logic."
+    },
+    {
+      "id": "code_sql_retention",
+      "category": "code",
+      "prompt": "Write a complex PostgreSQL query using Window Functions (ROW_NUMBER, PARTITION BY) and CTEs to compute 30-day user retention cohorts from an events table."
+    },
+    {
+      "id": "code_regex_validator",
+      "category": "code",
+      "prompt": "Write a Python function using regular expressions to parse, validate, and extract components (protocol, hostname, port, path, query params) from complex URLs."
+    }
+  ],
+  "reasoning": [
+    {
+      "id": "reason_logic_puzzle",
+      "category": "reasoning",
+      "prompt": "Solve this riddle step by step: Three people check into a hotel room that costs $30. They each pay $10. Later, the clerk realizes the room was actually $25 and sends the bellhop with $5. The bellhop keeps $2 and gives $1 back to each guest. Now each guest paid $9 (total $27) and the bellhop kept $2 (total $29). Where is the missing dollar?"
+    },
+    {
+      "id": "reason_math_proof",
+      "category": "reasoning",
+      "prompt": "Explain why the square root of 2 is irrational using proof by contradiction. Lay out each mathematical step clearly."
+    },
+    {
+      "id": "reason_monty_hall",
+      "category": "reasoning",
+      "prompt": "Explain the Monty Hall probability problem step by step. Prove mathematically why switching doors gives a 2/3 probability of winning compared to 1/3 for staying."
+    },
+    {
+      "id": "reason_einstein_riddle",
+      "category": "reasoning",
+      "prompt": "Analyze the following deduction puzzle: There are 3 colored houses in a row (Red, Green, Blue). The owner of the Red house drinks Tea. The Green house is immediately to the left of the Blue house. The Green house owner drinks Coffee. Who drinks Water? Explain your deduction step by step."
+    },
+    {
+      "id": "reason_bayes_theorem",
+      "category": "reasoning",
+      "prompt": "A rare disease affects 0.1% of the population. A test for the disease is 99% accurate (both sensitivity and specificity). If a person tests positive, calculate the probability that they actually have the disease using Bayes' Theorem step by step."
+    }
+  ],
+  "chat": [
+    {
+      "id": "chat_travel_itinerary",
+      "category": "chat",
+      "prompt": "You are a helpful travel assistant. Recommend a 3-day travel itinerary for visiting Tokyo, Japan, focusing on food, historic temples, and modern tech districts."
+    },
+    {
+      "id": "chat_code_review",
+      "category": "chat",
+      "prompt": "Can you review a pull request proposal for adding caching to an API endpoint? Explain the pros and cons of Redis vs in-memory caching in Node.js."
+    },
+    {
+      "id": "chat_interview_prep",
+      "category": "chat",
+      "prompt": "Act as a mock technical interviewer for a Senior Distributed Systems Engineer role. Ask me 3 challenging questions about consensus algorithms like Raft vs Paxos."
+    },
+    {
+      "id": "chat_prd_draft",
+      "category": "chat",
+      "prompt": "Help me draft a Product Requirements Document (PRD) outline for adding real-time collaborative editing features to a web-based Markdown note-taking app."
+    },
+    {
+      "id": "chat_customer_support",
+      "category": "chat",
+      "prompt": "Write a empathetic, professional customer support email responding to a user who experienced a duplicate subscription billing charge, offering a full refund and a free month of premium service."
+    }
+  ],
+  "prose": [
+    {
+      "id": "prose_sci_fi_story",
+      "category": "prose",
+      "prompt": "Write a compelling short science fiction scene set on a research station orbiting Neptune, where a scientist detects an unexpected radio signal from the planet's atmosphere."
+    },
+    {
+      "id": "prose_fantasy_intro",
+      "category": "prose",
+      "prompt": "Write an evocative opening chapter scene for an epic fantasy novel, describing an ancient granite fortress perched high in the misty Dragonback Mountains."
+    },
+    {
+      "id": "prose_historical_essay",
+      "category": "prose",
+      "prompt": "Write a short narrative essay explaining how the invention of the movable type printing press by Johannes Gutenberg transformed literacy and scientific exchange in 15th-century Europe."
+    },
+    {
+      "id": "prose_nature_monologue",
+      "category": "prose",
+      "prompt": "Write a descriptive sensory passage capturing the quiet atmosphere of a coastal redwood forest as an ocean fog rolls in at twilight."
+    },
+    {
+      "id": "prose_cyberpunk_dialogue",
+      "category": "prose",
+      "prompt": "Write a tense cyberpunk dialogue scene set in a rain-slicked alleyway between a rogue data-courier and a corporate investigator seeking a encrypted memory drive."
+    }
+  ]
+}
