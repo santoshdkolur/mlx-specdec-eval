@@ -1,10 +1,10 @@
-# `mlx-specdec-eval` 🚀
+# `mlx-specdec-eval`
 
-> A lightweight, local CLI benchmarking tool to profile, measure, and analyze **Speculative Decoding** performance across target and draft LLM pairs on Apple Silicon Macs using **MLX**.
+A lightweight, local CLI benchmarking tool to profile, measure, and analyze **Speculative Decoding** performance across target and draft LLM pairs on Apple Silicon Macs using **MLX**.
 
 ---
 
-### 💡 Why `mlx-specdec-eval`? (The Problem)
+## Overview & Problem Statement
 
 Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwidth**. Auto-regressively generating text requires transferring gigabytes of model weights from Unified Memory to GPU compute cores for *every single token*.
 
@@ -16,25 +16,25 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 > - If the target model is already small & fast (e.g. 3B parameters running at 35 TPS), draft model overhead can exceed parallel verification gains.
 
 **`mlx-specdec-eval` provides a scientific framework to answer:**
-- *Is speculative decoding actually faster on my specific Mac setup?*
-- *What is the exact token acceptance rate $\alpha$ across Code vs Chat tasks?*
-- *What is the optimal candidate draft length $K$?*
+- Is speculative decoding actually faster on my specific Mac setup?
+- What is the exact token acceptance rate $\alpha$ across Code vs Chat tasks?
+- What is the optimal candidate draft length $K$?
 
 ---
 
-### ⚡ Key Features
+## Key Features
 
-- **🔍 Fail-Fast Pre-Flight Check (`mlx-specdec-eval validate`):** Verifies tokenizer vocabulary identity, special tokens (`bos`, `eos`, `pad`), and estimates Apple Silicon RAM/VRAM footprints before downloading heavy model weights.
-- **🖥️ System Diagnostic Check (`mlx-specdec-eval check-env`):** Verifies Python 3.10+, active virtual environment (`.venv`), macOS Darwin, and Apple Silicon Metal GPU availability.
-- **🚀 Native MLX Profiling Engine (`mlx-specdec-eval run`):** Profiles acceptance rates ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), peak Metal memory, and exact output correctness.
-- **📊 Task Domain Breakdown:** Analyzes performance separately across **Code**, **Reasoning**, **Chat**, and **Prose** prompt categories.
-- **🎛️ Multi-$K$ Draft Token Sweeps:** Evaluates $K \in \{3, 5, 7\}$ in a single run to identify peak speedup settings.
-- **🎨 Visual HTML Dashboard & Exports:** Formats Rich terminal tables and exports interactive Chart.js HTML dashboards, Markdown summaries, and JSON logs.
-- **🛡️ Untracked Session-Local Storage (`./models/`):** Automatically routes Hugging Face model downloads into an untracked local `./models/` directory, preventing Git repository pollution.
+- **Fail-Fast Pre-Flight Check (`mlx-specdec-eval validate`):** Verifies tokenizer vocabulary identity, special tokens (`bos`, `eos`, `pad`), and estimates Apple Silicon RAM/VRAM footprints before downloading heavy model weights.
+- **System Diagnostic Check (`mlx-specdec-eval check-env`):** Verifies Python 3.10+, active virtual environment (`.venv`), macOS Darwin, and Apple Silicon Metal GPU availability.
+- **Native MLX Profiling Engine (`mlx-specdec-eval run`):** Profiles acceptance rates ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), peak Metal memory, and exact output correctness.
+- **Task Domain Breakdown:** Analyzes performance separately across **Code**, **Reasoning**, **Chat**, and **Prose** prompt categories.
+- **Multi-$K$ Draft Token Sweeps:** Evaluates $K \in \{3, 5, 7\}$ in a single run to identify peak speedup settings.
+- **Visual HTML Dashboard & Exports:** Formats Rich terminal tables and exports interactive Chart.js HTML dashboards, Markdown summaries, and JSON logs.
+- **Untracked Session-Local Storage (`./models/`):** Automatically routes Hugging Face model downloads into an untracked local `./models/` directory, preventing Git repository pollution.
 
 ---
 
-### 📐 Key Metrics Tracked
+## Metrics Tracked
 
 | Metric | Definition | Significance |
 | :--- | :--- | :--- |
@@ -46,14 +46,14 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 
 ---
 
-### 🛠️ Prerequisites & Setup Guide
+## Prerequisites & Setup Guide
 
-#### System Requirements
+### System Requirements
 - **Hardware:** Apple Silicon Mac (M1, M1 Pro/Max/Ultra, M2, M3, or M4 series).
 - **OS:** macOS 13.5+ (Ventura, Sonoma, Sequoia, or later).
 - **Python:** Python 3.10, 3.11, or 3.12.
 
-#### Installation Steps
+### Installation Steps
 
 1. **Clone the Repository:**
    ```bash
@@ -75,15 +75,15 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 
 ---
 
-### 🚀 Quickstart Command Guide
+## Quickstart Command Guide
 
-#### 1. Verify System Environment
+### 1. Verify System Environment
 Ensure Apple Silicon Metal GPU and dependencies are configured:
 ```bash
 spec-bench check-env
 ```
 
-#### 2. Pre-Flight Model Compatibility Check
+### 2. Pre-Flight Model Compatibility Check
 Check tokenizer alignment and system RAM footprints without downloading heavy weights:
 ```bash
 spec-bench validate \
@@ -91,7 +91,7 @@ spec-bench validate \
   --draft mlx-community/Llama-3.2-1B-Instruct-4bit
 ```
 
-#### 3. Run Benchmark Sweeps & Export Visual Dashboard
+### 3. Run Benchmark Sweeps & Export Visual Dashboard
 Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5, 7\}$ and export interactive reports:
 ```bash
 spec-bench run \
@@ -104,18 +104,18 @@ spec-bench run \
   --force
 ```
 
-#### 4. Open Interactive Dashboard
+### 4. Open Interactive Dashboard
 ```bash
 open report.html
 ```
 
-#### 5. Inspect Evaluation Prompts
+### 5. Inspect Evaluation Prompts
 List the 20 built-in prompts across Code, Reasoning, Chat, and Prose categories:
 ```bash
 spec-bench prompts
 ```
 
-#### 6. Clean Artifacts & Downloaded Models
+### 6. Clean Artifacts & Downloaded Models
 ```bash
 # Clean local report files
 spec-bench clean
@@ -126,7 +126,7 @@ spec-bench clean --all
 
 ---
 
-### 📁 Repository & Output Structure
+## Repository & Output Structure
 
 ```text
 mlx-specdec-eval/
@@ -161,32 +161,31 @@ mlx-specdec-eval/
 
 ---
 
-### 📚 Deep-Dive Documentation Index
+## Documentation Index
 
-Explore our comprehensive technical documentation suite under `docs/`:
+Explore our technical documentation suite under `docs/`:
 
-- 🏗️ **[Architecture & System Design](docs/architecture.md):** Modular breakdown, control flow, and data pipelines.
-- ⚙️ **[Environment Setup Guide](docs/environment_setup.md):** Python `.venv` management and Metal prerequisites.
-- 📐 **[Speculative Decoding Math](docs/speculative_decoding_math.md):** Rejection sampling equations, probability bounds, and memory bandwidth tradeoffs.
-- 🔍 **[Pre-Flight Validation Engine](docs/preflight_validation.md):** Tokenizer identity sweeps and memory footprint algorithms.
-- ⚡ **[MLX Profiling Guide](docs/mlx_profiling_guide.md):** Native MLX step loop integration and peak memory tracking.
-- 📖 **[CLI Reference Manual](docs/cli_reference.md):** Full subcommand and option documentation.
-- 📋 **[User Questionnaire Backlog](docs/user_questionnaire_backlog.md):** Log of open research topics reserved for future deep dives.
+- **[Architecture & System Design](docs/architecture.md):** Modular breakdown, control flow, and data pipelines.
+- **[Environment Setup Guide](docs/environment_setup.md):** Python `.venv` management and Metal prerequisites.
+- **[Speculative Decoding Math](docs/speculative_decoding_math.md):** Rejection sampling equations, probability bounds, and memory bandwidth tradeoffs.
+- **[Pre-Flight Validation Engine](docs/preflight_validation.md):** Tokenizer identity sweeps and memory footprint algorithms.
+- **[MLX Profiling Guide](docs/mlx_profiling_guide.md):** Native MLX step loop integration and peak memory tracking.
+- **[CLI Reference Manual](docs/cli_reference.md):** Full subcommand and option documentation.
+- **[User Questionnaire Backlog](docs/user_questionnaire_backlog.md):** Log of open research topics reserved for future deep dives.
 
 ---
 
-### 🤝 Feedback & Open Source Contributions
+## Feedback & Open Source Contributions
 
 I would love your feedback and contributions to make `mlx-specdec-eval` even better!
 
-
 If you run into issues, have ideas for new features (e.g., support for new quantization schemes, dynamic $K$ scheduling, or additional task domain prompts), or want to share benchmark results from your Mac:
 
-- 🌟 **Star this repository** if you find `mlx-specdec-eval` helpful!
-- 🐛 **[Open an Issue](https://github.com/santoshdkolur/mlx-specdec-eval/issues)** for bug reports or feature requests.
-- 🔀 **Submit a Pull Request** with improvements, extra prompts, or documentation enhancements.
+- **Star this repository** if you find `mlx-specdec-eval` helpful.
+- **[Open an Issue](https://github.com/santoshdkolur/mlx-specdec-eval/issues)** for bug reports or feature requests.
+- **Submit a Pull Request** with improvements, extra prompts, or documentation enhancements.
 
 ---
 
-### 📄 License
+## License
 Released under the [MIT License](LICENSE).
