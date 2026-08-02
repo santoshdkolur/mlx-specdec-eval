@@ -1,6 +1,7 @@
-# `spec-bench` 🚀
+# `mlx-specdec-eval` 🚀
 
 > A lightweight, local CLI benchmarking tool to profile, measure, and analyze **Speculative Decoding** performance across target and draft LLM pairs on Apple Silicon Macs using **MLX**.
+
 
 ---
 
@@ -55,9 +56,10 @@ Speculative decoding is **not guaranteed to speed up inference**:
 
 ### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/your-username/spec-bench.git
-cd spec-bench
+git clone https://github.com/santoshdkolur/mlx-specdec-eval.git
+cd mlx-specdec-eval
 ```
+
 
 ### Step 2: Create and Activate a Virtual Environment (`.venv`)
 ```bash
