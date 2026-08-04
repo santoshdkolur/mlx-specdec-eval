@@ -1,4 +1,4 @@
-# `mlx-specdec-eval`
+# `mlx-specdec-eval` (`spec-bench`)
 
 A lightweight, local CLI benchmarking tool to profile, measure, and analyze **Speculative Decoding** performance across target and draft LLM pairs on Apple Silicon Macs using **MLX**.
 
@@ -15,7 +15,7 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 > - If the token acceptance rate ($\alpha$) is low ($\le 50\%$), candidate tokens are rejected, causing **performance degradation** ($S < 1.0\times$).
 > - If the target model is already small & fast (e.g. 3B parameters running at 35 TPS), draft model overhead can exceed parallel verification gains.
 
-**`mlx-specdec-eval` provides a scientific framework to answer:**
+**`spec-bench` provides a scientific framework to answer:**
 - Is speculative decoding actually faster on my specific Mac setup?
 - What is the exact token acceptance rate $\alpha$ across Code vs Chat tasks?
 - What is the optimal candidate draft length $K$?
@@ -24,13 +24,34 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 
 ## Key Features
 
-- **Fail-Fast Pre-Flight Check (`mlx-specdec-eval validate`):** Verifies tokenizer vocabulary identity, special tokens (`bos`, `eos`, `pad`), and estimates Apple Silicon RAM/VRAM footprints before downloading heavy model weights.
-- **System Diagnostic Check (`mlx-specdec-eval check-env`):** Verifies Python 3.10+, active virtual environment (`.venv`), macOS Darwin, and Apple Silicon Metal GPU availability.
-- **Native MLX Profiling Engine (`mlx-specdec-eval run`):** Profiles acceptance rates ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), peak Metal memory, and exact output correctness.
+- **Fail-Fast Pre-Flight Check (`spec-bench validate`):** Verifies tokenizer vocabulary identity, special tokens (`bos`, `eos`, `pad`), and estimates Apple Silicon RAM/VRAM footprints before downloading heavy model weights.
+- **System Diagnostic Check (`spec-bench check-env`):** Verifies Python 3.10+, active virtual environment (`.venv`), macOS Darwin, and Apple Silicon Metal GPU availability.
+- **Native MLX Profiling Engine (`spec-bench run`):** Profiles acceptance rates ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), peak Metal memory, and exact output correctness.
 - **Task Domain Breakdown:** Analyzes performance separately across **Code**, **Reasoning**, **Chat**, and **Prose** prompt categories.
 - **Multi-$K$ Draft Token Sweeps:** Evaluates $K \in \{3, 5, 7\}$ in a single run to identify peak speedup settings.
 - **Visual HTML Dashboard & Exports:** Formats Rich terminal tables and exports interactive Chart.js HTML dashboards, Markdown summaries, and JSON logs.
 - **Untracked Session-Local Storage (`./models/`):** Automatically routes Hugging Face model downloads into an untracked local `./models/` directory, preventing Git repository pollution.
+
+---
+
+## CLI Command Usage & `--help` Reference
+
+Run `spec-bench --help` in your terminal to inspect all available subcommands and flags:
+
+```bash
+spec-bench --help
+```
+
+### Subcommand Help Summary
+
+| Command | Usage | Description |
+| :--- | :--- | :--- |
+| **`spec-bench --help`** | Displays global help and list of subcommands. | General entrypoint documentation. |
+| **`spec-bench check-env --help`** | `spec-bench check-env [--verbose]` | Diagnostics for Python, `.venv`, Darwin OS, and Metal GPU backend. |
+| **`spec-bench validate --help`** | `spec-bench validate -t TARGET -d DRAFT` | Pre-flight compatibility & RAM footprint check options. |
+| **`spec-bench run --help`** | `spec-bench run -t TARGET -d DRAFT [FLAGS]` | Parameters for sweeps ($K$), single prompt options, and report exports. |
+| **`spec-bench prompts --help`** | `spec-bench prompts [--category CAT]` | Options to inspect built-in prompt categories. |
+| **`spec-bench clean --help`** | `spec-bench clean [--all]` | Options to remove generated reports or local Hugging Face cache. |
 
 ---
 
@@ -39,39 +60,10 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 | Metric | Definition | Significance |
 | :--- | :--- | :--- |
 | **Acceptance Rate ($\alpha$)** | $\alpha = \frac{\text{Accepted Draft Tokens}}{\text{Total Proposed Draft Tokens}}$ | Measures prediction alignment between draft & target models ($0\% - 100\%$). |
-| **Tokens Per Second (TPS)** | $\text{TPS} = \frac{N_{\text{total\_tokens}}}{T_{\text{wall\_clock}}}$ | Real-time generation throughput. |
+| **Tokens Per Second (TPS)** | $\text{TPS} = \frac{N_{\text{total\_tokens}}}{T_{\text{decode\_time}}}$ | Real-time generation throughput during decode phase. |
 | **Speedup Factor ($S$)** | $S = \frac{\text{TPS}_{\text{speculative}}}{\text{TPS}_{\text{baseline}}}$ | Ratio comparing speculative decoding throughput to baseline target generation ($S > 1.0\times$ = Accelerated). |
 | **Output Match Rate** | $\text{Exact Match } (EM = 100\%)$ | Verifies token-for-token output identity against baseline target generation. |
 | **Peak Memory Footprint** | Measured via `mlx.core.metal.get_peak_memory()` | Peak Metal Unified VRAM allocation in MB. |
-
----
-
-## Prerequisites & Setup Guide
-
-### System Requirements
-- **Hardware:** Apple Silicon Mac (M1, M1 Pro/Max/Ultra, M2, M3, or M4 series).
-- **OS:** macOS 13.5+ (Ventura, Sonoma, Sequoia, or later).
-- **Python:** Python 3.10, 3.11, or 3.12.
-
-### Installation Steps
-
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/santoshdkolur/mlx-specdec-eval.git
-   cd mlx-specdec-eval
-   ```
-
-2. **Create and Activate a Virtual Environment (`.venv`):**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install Package Dependencies:**
-   ```bash
-   pip install --upgrade pip
-   pip install -e ".[dev]"
-   ```
 
 ---
 
@@ -80,19 +72,19 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 ### 1. Verify System Environment
 Ensure Apple Silicon Metal GPU and dependencies are configured:
 ```bash
-mlx-specdec-eval check-env
+spec-bench check-env
 ```
 
 ### 2. Pre-Flight Model Compatibility Check
 Check tokenizer alignment and system RAM footprints without downloading heavy weights:
 ```bash
-mlx-specdec-eval validate \
-  --target mlx-community/Llama-3.2-3B-Instruct-4bit \
-  --draft mlx-community/Llama-3.2-1B-Instruct-4bit
+spec-bench validate \
+  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit
 ```
 
 ### 3. Run Benchmark Sweeps & Export Visual Dashboard
-Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5\}$ and export interactive reports (using `mlx-specdec-eval` or `spec-bench`):
+Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5\}$ and export interactive reports:
 ```bash
 spec-bench run \
   --target mlx-community/Qwen2.5-7B-Instruct-4bit \
@@ -123,21 +115,21 @@ spec-bench run \
 open report.html
 ```
 
-
 ### 5. Inspect Evaluation Prompts
 List the 20 built-in prompts across Code, Reasoning, Chat, and Prose categories:
 ```bash
-mlx-specdec-eval prompts
+spec-bench prompts
 ```
 
 ### 6. Clean Artifacts & Downloaded Models
 ```bash
 # Clean local report files
-mlx-specdec-eval clean
+spec-bench clean
 
 # Clean local report files AND untracked downloaded models in ./models/
-mlx-specdec-eval clean --all
+spec-bench clean --all
 ```
+
 
 ---
 
