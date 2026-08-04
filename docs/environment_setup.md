@@ -1,6 +1,6 @@
 # Environment Setup Guide
 
-This guide covers setting up an environment for running `spec-bench` on Apple Silicon Macs.
+This guide covers setting up an environment for running `mlx-specdec-eval` on Apple Silicon Macs.
 
 ---
 
@@ -14,7 +14,7 @@ This guide covers setting up an environment for running `spec-bench` on Apple Si
 
 ## 2. Python & Virtual Environment Setup
 
-`spec-bench` requires **Python 3.10** or higher.
+`mlx-specdec-eval` requires **Python 3.10** or higher.
 
 ### Creating the Virtual Environment (`.venv`)
 
@@ -37,7 +37,7 @@ When activated, your terminal prompt will display `(.venv)`.
 
 ## 3. Package Installation
 
-Install `spec-bench` and MLX in editable mode:
+Install `mlx-specdec-eval` and MLX in editable mode:
 
 ```bash
 pip install --upgrade pip
@@ -61,7 +61,7 @@ pip install -e ".[dev]"
 Run the built-in environment diagnostic command to verify your environment setup:
 
 ```bash
-spec-bench check-env
+mlx-specdec-eval check-env
 ```
 
 ### Expected Output Checklist

@@ -1,5 +1,5 @@
 """
-Click CLI Module for spec-bench.
+Click CLI Module for mlx-specdec-eval.
 Provides subcommands: check-env, validate, run, prompts, and report.
 """
 
@@ -26,29 +26,17 @@ from spec_bench.reporter import (
     export_html
 )
 
-import os
 
 console = Console()
 
 DEFAULT_PROMPTS_PATH = Path(__file__).parent.parent / "configs" / "default_prompts.json"
-DEFAULT_MODELS_DIR = Path("models").resolve()
-
-
-def ensure_local_models_dir(models_dir: Optional[str] = None) -> Path:
-    """Ensures Hugging Face downloads store models in the untracked project models/ directory."""
-    target_dir = Path(models_dir).resolve() if models_dir else DEFAULT_MODELS_DIR
-    target_dir.mkdir(parents=True, exist_ok=True)
-    os.environ["HF_HOME"] = str(target_dir)
-    os.environ["TRANSFORMERS_CACHE"] = str(target_dir)
-    os.environ["HF_HUB_CACHE"] = str(target_dir)
-    return target_dir
 
 
 @click.group()
 @click.version_option(version="0.1.0")
 def main():
-    """🚀 spec-bench: Speculative Decoding Benchmarking Tool for Apple Silicon MLX"""
-    ensure_local_models_dir()
+    """🚀 mlx-specdec-eval: Speculative Decoding Benchmarking Tool for Apple Silicon MLX"""
+
 
 
 
@@ -157,9 +145,12 @@ def prompts_cmd(category: str, prompts_file: Optional[str]):
 @click.option("--repeats", default=2, type=int, help="Number of repeat runs per prompt.")
 @click.option("--category", default="all", help="Prompt category filter (code, reasoning, chat, prose, all).")
 @click.option("--prompts-file", default=None, type=click.Path(exists=True), help="Path to custom JSON prompts file.")
+@click.option("--prompt-id", default=None, help="Filter evaluation to a single prompt ID (e.g. reason_math_proof, code_quicksort).")
+@click.option("--prompt", "single_prompt", default=None, help="Run evaluation on a single custom prompt string.")
 @click.option("--export-json", "export_json_path", default=None, help="Filepath to export JSON results.")
 @click.option("--export-markdown", "export_markdown_path", default=None, help="Filepath to export Markdown summary.")
 @click.option("--export-html", "export_html_path", default=None, help="Filepath to export visual HTML report.")
+
 @click.option("--skip-preflight", is_flag=True, help="Skip pre-flight checks.")
 @click.option("--force", is_flag=True, help="Force execution despite warnings.")
 @click.option("--synthetic", is_flag=True, help="Force synthetic evaluation mode for demonstration/testing.")
@@ -173,6 +164,8 @@ def run_cmd(
     repeats: int,
     category: str,
     prompts_file: Optional[str],
+    prompt_id: Optional[str],
+    single_prompt: Optional[str],
     export_json_path: Optional[str],
     export_markdown_path: Optional[str],
     export_html_path: Optional[str],
@@ -198,22 +191,34 @@ def run_cmd(
             sys.exit(1)
 
     # 3. Load prompts
-    prompts_path = Path(prompts_file) if prompts_file else DEFAULT_PROMPTS_PATH
-    if not prompts_path.exists():
-        console.print(f"❌ Prompts file not found: {prompts_path}")
-        sys.exit(1)
+    if single_prompt:
+        selected_prompts = [{
+            "id": "custom_prompt",
+            "category": "custom",
+            "prompt": single_prompt
+        }]
+    else:
+        prompts_path = Path(prompts_file) if prompts_file else DEFAULT_PROMPTS_PATH
+        if not prompts_path.exists():
+            console.print(f"❌ Prompts file not found: {prompts_path}")
+            sys.exit(1)
 
-    with open(prompts_path, "r", encoding="utf-8") as f:
-        prompts_data = json.load(f)
+        with open(prompts_path, "r", encoding="utf-8") as f:
+            prompts_data = json.load(f)
 
-    selected_prompts = []
-    for cat_name, p_list in prompts_data.items():
-        if category == "all" or category.lower() == cat_name.lower():
-            selected_prompts.extend(p_list)
+        selected_prompts = []
+        for cat_name, p_list in prompts_data.items():
+            if category == "all" or category.lower() == cat_name.lower():
+                selected_prompts.extend(p_list)
+
+        if prompt_id:
+            selected_prompts = [p for p in selected_prompts if p["id"].lower() == prompt_id.lower()]
 
     if not selected_prompts:
-        console.print(f"❌ No prompts found matching category '{category}'.")
+        target_name = f"prompt-id '{prompt_id}'" if prompt_id else f"category '{category}'"
+        console.print(f"❌ No prompts found matching {target_name}.")
         sys.exit(1)
+
 
     console.print(f"\n🚀 [bold cyan]Starting Benchmark: Target={target} | Draft={draft}[/bold cyan]")
     console.print(f"   [dim]Draft Counts (K): {K_values} | Prompts: {len(selected_prompts)} | Repeats: {repeats}[/dim]\n")
@@ -250,10 +255,10 @@ def run_cmd(
 
         # Warmup runs
         if warmup > 0 and selected_prompts:
-            console.print("🔥 Running Warmup Iterations...")
+            console.print("🔥 Running Initial Warmup Iterations...")
             for _ in range(warmup):
-                engine.run_baseline(selected_prompts[0]["prompt"], max_tokens=16, temp=temp)
-                engine.run_speculative(selected_prompts[0]["prompt"], num_draft_tokens=K_values[0], max_tokens=16, temp=temp)
+                engine.run_baseline(selected_prompts[0]["prompt"], max_tokens=max_tokens, temp=temp)
+                engine.run_speculative(selected_prompts[0]["prompt"], num_draft_tokens=K_values[0], max_tokens=max_tokens, temp=temp)
 
         # Baseline Target Runs
         console.print("📊 Executing Baseline (Non-Speculative) Runs...")
@@ -262,19 +267,28 @@ def run_cmd(
             for _ in range(repeats):
                 res = engine.run_baseline(p["prompt"], max_tokens=max_tokens, temp=temp)
                 res["prompt_id"] = p["id"]
+                res["category"] = p["category"]
                 baseline_runs.append(res)
 
         # Speculative Runs across K
         runs_by_k = {}
+
         for k in K_values:
             console.print(f"⚡ Executing Speculative Runs for K={k}...")
+            
+            # K-specific warmup to trigger Metal compile for sequence length shape K
+            if warmup > 0 and selected_prompts:
+                engine.run_speculative(selected_prompts[0]["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
+            
             k_runs = []
             for p in selected_prompts:
                 for _ in range(repeats):
                     res = engine.run_speculative(p["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
                     res["prompt_id"] = p["id"]
+                    res["category"] = p["category"]
                     k_runs.append(res)
             runs_by_k[k] = k_runs
+
 
         results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs)
 
@@ -312,7 +326,7 @@ def clean_cmd(clean_all: bool):
     """Clean generated benchmark reports, JSON results, and optional HF cache."""
     import shutil
 
-    console.print("\n🧹 [bold cyan]Cleaning up spec-bench artifacts...[/bold cyan]\n")
+    console.print("\n🧹 [bold cyan]Cleaning up mlx-specdec-eval artifacts...[/bold cyan]\n")
 
     artifacts = ["results.json", "summary.md", "report.html", "custom_report.html"]
     removed_count = 0

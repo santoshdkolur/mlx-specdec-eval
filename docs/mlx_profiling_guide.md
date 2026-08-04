@@ -1,6 +1,6 @@
 # MLX Integration & Profiling Guide
 
-This document details how `spec-bench` integrates with Apple's **MLX** framework (`mlx-lm`) to record step-by-step speculative metrics.
+This document details how `mlx-specdec-eval` integrates with Apple's **MLX** framework (`mlx-lm`) to record step-by-step speculative metrics.
 
 ---
 
@@ -23,7 +23,7 @@ draft_model, _ = load("mlx-community/Llama-3.2-1B-Instruct-4bit")
 
 ## 2. Profiling Step Loop
 
-To record exact acceptance rates ($\alpha$), time-to-first-token, and latency per token step, `spec-bench` iterates through MLX step generators:
+To record exact acceptance rates ($\alpha$), time-to-first-token, and latency per token step, `mlx-specdec-eval` iterates through MLX step generators:
 
 ### Metrics Captured Per Generation Run
 
@@ -36,7 +36,7 @@ To record exact acceptance rates ($\alpha$), time-to-first-token, and latency pe
 
 ## 3. Comparative Baseline Step
 
-For every benchmark prompt, `spec-bench` runs:
+For every benchmark prompt, `mlx-specdec-eval` runs:
 1. **Baseline Run:** Target model $M_T$ running standard auto-regressive generation without draft model.
 2. **Speculative Run:** Target model $M_T$ + Draft model $M_D$ running speculative generation with $K$ draft tokens.
 

@@ -1,5 +1,5 @@
 """
-Pre-Flight Validator Module for spec-bench.
+Pre-Flight Validator Module for mlx-specdec-eval.
 Executes fail-fast environment checks, tokenizer compatibility verification, and Apple Silicon RAM footprint estimation.
 """
 

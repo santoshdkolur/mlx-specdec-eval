@@ -14,7 +14,7 @@ except ImportError:
     metal = None
 
 try:
-    from mlx_lm import load, generate
+    from mlx_lm import load, generate, stream_generate
     try:
         from mlx_lm.sample_utils import make_sampler
     except ImportError:
@@ -22,6 +22,7 @@ try:
     HAS_MLX_LM = True
 except ImportError:
     make_sampler = None
+    stream_generate = None
     HAS_MLX_LM = False
 
 
@@ -95,31 +96,58 @@ class MLXSpeculativeEngine:
         if not self.is_loaded:
             self.load_models()
 
+        # Automatically format prompt using model's chat template if available
+        if hasattr(self.tokenizer, "apply_chat_template"):
+            try:
+                messages = [{"role": "user", "content": prompt}]
+                prompt = self.tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+            except Exception:
+                pass
+
         reset_peak_mem()
+
 
         gen_kwargs = {
             "prompt": prompt,
-            "max_tokens": max_tokens,
-            "verbose": False
+            "max_tokens": max_tokens
         }
+
         if temp > 0.0 and make_sampler is not None:
             gen_kwargs["sampler"] = make_sampler(temp)
 
         start_time = time.perf_counter()
-        response = generate(
-            self.target_model,
-            self.tokenizer,
-            **gen_kwargs
-        )
+        first_token_time = None
+        output_tokens = 0
+        response = ""
+
+        if HAS_MLX_LM and stream_generate is not None:
+            for response_chunk in stream_generate(
+                self.target_model,
+                self.tokenizer,
+                **gen_kwargs
+            ):
+                if first_token_time is None:
+                    first_token_time = time.perf_counter()
+                output_tokens += 1
+                response += response_chunk.text
+        else:
+            response = generate(
+                self.target_model,
+                self.tokenizer,
+                **gen_kwargs
+            )
+            output_tokens = max(1, len(self.tokenizer.encode(response)))
+
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
+        prefill_time = (first_token_time - start_time) if first_token_time else 0.0
+        decode_time = (end_time - first_token_time) if first_token_time and end_time > first_token_time else elapsed_time
 
-        # Tokenize output to compute exact output token count
-        encoded_prompt = self.tokenizer.encode(prompt)
-        encoded_response = self.tokenizer.encode(response)
-        output_tokens = max(1, len(encoded_response) - len(encoded_prompt)) if len(encoded_response) > len(encoded_prompt) else max(1, len(encoded_response))
-
-        tps = output_tokens / elapsed_time if elapsed_time > 0 else 0.0
+        # Generation Decode TPS (standard LLM benchmark metric)
+        tps = output_tokens / decode_time if decode_time > 0 else 0.0
+        total_tps = output_tokens / elapsed_time if elapsed_time > 0 else 0.0
         peak_memory_mb = get_peak_mem_mb()
 
         return {
@@ -128,9 +156,13 @@ class MLXSpeculativeEngine:
             "text": response,
             "output_tokens": output_tokens,
             "elapsed_time_s": elapsed_time,
+            "prefill_time_s": prefill_time,
+            "decode_time_s": decode_time,
             "tps": tps,
+            "total_tps": total_tps,
             "peak_memory_mb": peak_memory_mb
         }
+
 
     def run_speculative(
         self,
@@ -147,49 +179,96 @@ class MLXSpeculativeEngine:
         if not self.is_loaded:
             self.load_models()
 
+        # Automatically format prompt using model's chat template if available
+        if hasattr(self.tokenizer, "apply_chat_template"):
+            try:
+                messages = [{"role": "user", "content": prompt}]
+                prompt = self.tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+            except Exception:
+                pass
+
         reset_peak_mem()
 
         gen_kwargs = {
             "prompt": prompt,
             "draft_model": self.draft_model,
+
             "num_draft_tokens": num_draft_tokens,
-            "max_tokens": max_tokens,
-            "verbose": False
+            "max_tokens": max_tokens
         }
+
         if temp > 0.0 and make_sampler is not None:
             gen_kwargs["sampler"] = make_sampler(temp)
 
+        accepted_draft_tokens = 0
+        total_draft_tokens_proposed = 0
+        output_tokens = 0
+        response_text = ""
+        in_draft_step = False
+
         start_time = time.perf_counter()
-        response = generate(
-            self.target_model,
-            self.tokenizer,
-            **gen_kwargs
-        )
+        first_token_time = None
+
+        if HAS_MLX_LM and stream_generate is not None:
+            for response_chunk in stream_generate(
+                self.target_model,
+                self.tokenizer,
+                **gen_kwargs
+            ):
+                if first_token_time is None:
+                    first_token_time = time.perf_counter()
+
+                if not in_draft_step:
+                    remaining = max_tokens - output_tokens
+                    proposed_this_step = min(remaining, num_draft_tokens)
+                    total_draft_tokens_proposed += proposed_this_step
+                    in_draft_step = True
+
+                if getattr(response_chunk, "from_draft", False):
+                    accepted_draft_tokens += 1
+                else:
+                    in_draft_step = False
+
+                output_tokens += 1
+                response_text += response_chunk.text
+
+        else:
+            response_text = generate(
+                self.target_model,
+                self.tokenizer,
+                **gen_kwargs
+            )
+            # Same: generate() returns completion only, not prompt+completion.
+            output_tokens = max(1, len(self.tokenizer.encode(response_text)))
+
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
+        prefill_time = (first_token_time - start_time) if first_token_time else 0.0
+        decode_time = (end_time - first_token_time) if first_token_time and end_time > first_token_time else elapsed_time
 
-        encoded_prompt = self.tokenizer.encode(prompt)
-        encoded_response = self.tokenizer.encode(response)
-        output_tokens = max(1, len(encoded_response) - len(encoded_prompt)) if len(encoded_response) > len(encoded_prompt) else max(1, len(encoded_response))
-
-        tps = output_tokens / elapsed_time if elapsed_time > 0 else 0.0
+        # Generation Decode TPS (standard LLM benchmark metric)
+        tps = output_tokens / decode_time if decode_time > 0 else 0.0
+        total_tps = output_tokens / elapsed_time if elapsed_time > 0 else 0.0
         peak_memory_mb = get_peak_mem_mb()
 
-        num_steps = max(1, output_tokens // max(1, (num_draft_tokens // 2)))
-        total_draft_tokens_proposed = num_steps * num_draft_tokens
-        accepted_draft_tokens = min(output_tokens, int(total_draft_tokens_proposed * 0.70))
         alpha = accepted_draft_tokens / total_draft_tokens_proposed if total_draft_tokens_proposed > 0 else 0.0
 
         return {
             "mode": "speculative",
             "prompt": prompt,
-            "text": response,
+            "text": response_text,
             "num_draft_tokens": num_draft_tokens,
             "output_tokens": output_tokens,
             "total_draft_proposed": total_draft_tokens_proposed,
             "accepted_draft_tokens": accepted_draft_tokens,
             "alpha": alpha,
             "elapsed_time_s": elapsed_time,
+            "prefill_time_s": prefill_time,
+            "decode_time_s": decode_time,
             "tps": tps,
+            "total_tps": total_tps,
             "peak_memory_mb": peak_memory_mb
         }
+

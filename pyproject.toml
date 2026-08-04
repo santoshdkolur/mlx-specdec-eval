@@ -37,6 +37,9 @@ dev = [
 
 [project.scripts]
 spec-bench = "spec_bench.cli:main"
+mlx-specdec-eval = "spec_bench.cli:main"
+
+
 
 [tool.setuptools.packages.find]
 where = ["."]

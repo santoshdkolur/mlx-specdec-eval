@@ -1,6 +1,6 @@
 # Pre-Flight Validation Engine
 
-Before allocating GPU memory or running generation steps, `spec-bench` executes fail-fast pre-flight checks to prevent runtime errors, vocabulary mismatches, or Unified Memory thrashing.
+Before allocating GPU memory or running generation steps, `mlx-specdec-eval` executes fail-fast pre-flight checks to prevent runtime errors, vocabulary mismatches, or Unified Memory thrashing.
 
 ---
 
@@ -61,4 +61,4 @@ $$\text{Memory}_{\text{required}} = \text{Size}(M_T) + \text{Size}(M_D) + \text{
 - **Hugging Face Hub Model Size:** Fetched from HF Hub API metadata (`siblings` file size summation) when models are specified via repository IDs (e.g. `mlx-community/Llama-3.2-3B-Instruct-4bit`).
 - **Available System RAM:** Queried via `psutil.virtual_memory().available`.
 
-If $\text{Memory}_{\text{required}} > \text{RAM}_{\text{available}}$, `spec-bench` aborts with a `MemoryError` diagnostic unless `--force` or `--skip-preflight` is passed.
+If $\text{Memory}_{\text{required}} > \text{RAM}_{\text{available}}$, `mlx-specdec-eval` aborts with a `MemoryError` diagnostic unless `--force` or `--skip-preflight` is passed.

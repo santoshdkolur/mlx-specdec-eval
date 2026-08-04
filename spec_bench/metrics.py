@@ -1,5 +1,5 @@
 """
-Metrics Computation Engine for spec-bench.
+Metrics Computation Engine for mlx-specdec-eval.
 Calculates acceptance rate (alpha), TPS, Speedup factor (S), per-category task breakdowns,
 and aggregates multi-run benchmark data.
 """
@@ -72,9 +72,9 @@ def aggregate_benchmark_results(
 
         # Per-Category Task Breakdown for this K
         categories = {}
-        # Group baseline runs by category/prompt_id prefix or prompt_category
         for spec_r in spec_runs:
-            cat = spec_r.get("category", spec_r.get("prompt_id", "general").split("_")[0]).lower()
+            # Use the explicit "category" field passed from cli.py
+            cat = spec_r.get("category", "general").lower()
             if cat not in categories:
                 categories[cat] = {
                     "spec_tps": [],
@@ -91,11 +91,12 @@ def aggregate_benchmark_results(
                 if spec_r.get("text", "").strip() == base_map[p_id].strip():
                     categories[cat]["matches"] += 1
 
-        # Match baseline runs for category base_tps
+        # Match baseline runs for category base_tps using explicit category field
         for base_r in baseline_runs:
-            cat = base_r.get("category", base_r.get("prompt_id", "general").split("_")[0]).lower()
+            cat = base_r.get("category", "general").lower()
             if cat in categories and base_r.get("tps", 0.0) > 0:
                 categories[cat]["base_tps"].append(base_r.get("tps", 0.0))
+
 
         cat_breakdown = {}
         for cat_name, cat_data in categories.items():

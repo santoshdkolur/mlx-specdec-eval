@@ -1,20 +1,20 @@
-# `spec-bench` CLI Reference
+# `mlx-specdec-eval` CLI Reference
 
-Complete command-line interface specification for `spec-bench`.
+Complete command-line interface specification for `mlx-specdec-eval`.
 
 ---
 
 ## Global Entry Point
 
 ```bash
-spec-bench [SUBCOMMAND] [OPTIONS]
+mlx-specdec-eval [SUBCOMMAND] [OPTIONS]
 ```
 
 ---
 
 ## Subcommands
 
-### 1. `spec-bench check-env`
+### 1. `mlx-specdec-eval check-env`
 
 Runs environment diagnostics to ensure Python, virtualenv, Apple Silicon OS, and Metal acceleration are configured correctly.
 
@@ -23,12 +23,12 @@ Runs environment diagnostics to ensure Python, virtualenv, Apple Silicon OS, and
 
 #### Example
 ```bash
-spec-bench check-env --verbose
+mlx-specdec-eval check-env --verbose
 ```
 
 ---
 
-### 2. `spec-bench validate`
+### 2. `mlx-specdec-eval validate`
 
 Runs pre-flight compatibility and memory checks for a target/draft model pair.
 
@@ -40,14 +40,16 @@ Runs pre-flight compatibility and memory checks for a target/draft model pair.
 
 #### Example
 ```bash
-spec-bench validate \
+mlx-specdec-eval validate \
   --target mlx-community/Llama-3.2-3B-Instruct-4bit \
   --draft mlx-community/Llama-3.2-1B-Instruct-4bit
 ```
 
+* Note: Commands can be executed using either `spec-bench` or `mlx-specdec-eval`.
+
 ---
 
-### 3. `spec-bench run`
+### 3. `mlx-specdec-eval run` (or `spec-bench run`)
 
 Executes speculative decoding benchmarks and baseline comparisons across target and draft models.
 
@@ -55,6 +57,8 @@ Executes speculative decoding benchmarks and baseline comparisons across target 
 * `-t, --target TEXT`: Path or HF Hub repo ID of the target model. **[Required]**
 * `-d, --draft TEXT`: Path or HF Hub repo ID of the draft model. **[Required]**
 * `-k, --num-draft-tokens TEXT`: Comma-separated list of draft token counts to evaluate (e.g. `3,5,7`, default: `5`).
+* `--prompt-id TEXT`: Filter evaluation to a single prompt ID (e.g. `code_quicksort`, `reason_math_proof`).
+* `--prompt TEXT`: Run evaluation on a single custom prompt string.
 * `--max-tokens INTEGER`: Maximum tokens to generate per prompt (default: `128`).
 * `--temp FLOAT`: Generation temperature (default: `0.0`).
 * `--warmup INTEGER`: Number of warmup runs prior to timing (default: `1`).
@@ -67,9 +71,10 @@ Executes speculative decoding benchmarks and baseline comparisons across target 
 * `--skip-preflight`: Skip pre-flight validator checks.
 * `--force`: Force execution despite pre-flight check warnings.
 
+
 #### Example
 ```bash
-spec-bench run \
+mlx-specdec-eval run \
   --target mlx-community/Llama-3.2-3B-Instruct-4bit \
   --draft mlx-community/Llama-3.2-1B-Instruct-4bit \
   --num-draft-tokens 3,5,7 \
@@ -81,7 +86,7 @@ spec-bench run \
 
 ---
 
-### 4. `spec-bench prompts`
+### 4. `mlx-specdec-eval prompts`
 
 Inspects built-in evaluation prompt suites.
 
@@ -90,12 +95,12 @@ Inspects built-in evaluation prompt suites.
 
 #### Example
 ```bash
-spec-bench prompts --category code
+mlx-specdec-eval prompts --category code
 ```
 
 ---
 
-### 5. `spec-bench report`
+### 5. `mlx-specdec-eval report`
 
 Generates Markdown or interactive HTML reports from a previously saved benchmark JSON results file.
 
@@ -106,12 +111,12 @@ Generates Markdown or interactive HTML reports from a previously saved benchmark
 
 #### Example
 ```bash
-spec-bench report results.json --output report.html --format html
+mlx-specdec-eval report results.json --output report.html --format html
 ```
 
 ---
 
-### 6. `spec-bench clean`
+### 6. `mlx-specdec-eval clean`
 
 Cleans generated benchmark reports (`results.json`, `summary.md`, `report.html`) and optional Hugging Face model cache.
 
@@ -121,9 +126,9 @@ Cleans generated benchmark reports (`results.json`, `summary.md`, `report.html`)
 #### Example
 ```bash
 # Clean local report files
-spec-bench clean
+mlx-specdec-eval clean
 
 # Clean local reports AND Hugging Face cached model weights
-spec-bench clean --all
+mlx-specdec-eval clean --all
 ```
 

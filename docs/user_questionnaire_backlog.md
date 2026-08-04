@@ -1,4 +1,4 @@
-# `spec-bench` User Questionnaire & Discussion Backlog
+# `mlx-specdec-eval` User Questionnaire & Discussion Backlog
 
 This document tracks open questions, design topics, and concepts to revisit in future sessions.
 

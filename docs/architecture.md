@@ -1,6 +1,6 @@
-# `spec-bench` Architecture & System Design
+# `mlx-specdec-eval` Architecture & System Design
 
-This document details the software architecture, modular decomposition, data flow, and design patterns of `spec-bench`.
+This document details the software architecture, modular decomposition, data flow, and design patterns of `mlx-specdec-eval`.
 
 ---
 
@@ -42,12 +42,12 @@ This document details the software architecture, modular decomposition, data flo
 
 ### 1. `spec_bench/cli.py` (Control & Entry Point)
 Powered by `click` and `rich`, providing structured subcommands:
-- `spec-bench check-env`: System diagnostics (Python version, `.venv`, Darwin OS, Metal acceleration).
-- `spec-bench validate`: Pre-flight compatibility & RAM footprint checks.
-- `spec-bench run`: Benchmark generation loops with multi-$K$ parameter sweeps.
-- `spec-bench prompts`: Inspection of evaluation prompts suite.
-- `spec-bench report`: Post-processing saved JSON logs into HTML or Markdown reports.
-- `spec-bench clean`: Artifacts and optional Hugging Face model cache cleanup (`--all`).
+- `mlx-specdec-eval check-env`: System diagnostics (Python version, `.venv`, Darwin OS, Metal acceleration).
+- `mlx-specdec-eval validate`: Pre-flight compatibility & RAM footprint checks.
+- `mlx-specdec-eval run`: Benchmark generation loops with multi-$K$ parameter sweeps.
+- `mlx-specdec-eval prompts`: Inspection of evaluation prompts suite.
+- `mlx-specdec-eval report`: Post-processing saved JSON logs into HTML or Markdown reports.
+- `mlx-specdec-eval clean`: Artifacts and optional Hugging Face model cache cleanup (`--all`).
 - **Session-Local Model Cache:** Automatically sets `HF_HOME=./models` dynamically so downloads remain local to the project workspace and untracked by Git.
 
 ### 2. `spec_bench/validator.py` (Fail-Fast Verification Engine)
@@ -59,14 +59,15 @@ Powered by `click` and `rich`, providing structured subcommands:
 - Loads target and draft models into Apple Silicon Metal Unified Memory via `mlx_lm.load`.
 - Configures sampler functions (`make_sampler(temp)`) to support greedy and stochastic sampling without deprecation errors.
 - Executes baseline (target-only) and speculative (target + draft) generation loops.
+- **Speculative Tracking State Machine**: Operates a state machine over `stream_generate` to count accepted tokens (where `chunk.from_draft` is `True`) and proposed draft tokens ($\min(\text{remaining}, K)$ added once per round).
 - Tracks peak Metal memory allocation (`mx.metal.get_peak_memory()`) and elapsed wall-clock latency.
 
 ### 4. `spec_bench/metrics.py` (Quantitative Analysis & Domain Breakdown)
-- Computes Acceptance Rate $\alpha = \frac{N_{\text{accepted}}}{N_{\text{proposed}}}$.
+- Computes Acceptance Rate $\alpha = \frac{N_{\text{accepted}}}{N_{\text{proposed}}}$ directly from state machine outputs.
 - Computes Tokens Per Second ($\text{TPS}$) for baseline and speculative modes.
 - Computes Speedup Ratio $S = \frac{\text{TPS}_{\text{speculative}}}{\text{TPS}_{\text{baseline}}}$.
 - **Output Match Verification:** Evaluates string equality (`exact_match_rate`) between baseline target and speculative outputs.
-- **Task Domain Breakdown:** Groups benchmark runs dynamically by category (`CODE`, `REASONING`, `CHAT`, `PROSE`) to report category-level TPS, acceptance rate $\alpha$, and speedup $S$.
+- **Task Domain Breakdown:** Groups benchmark runs dynamically using the explicit prompt category metadata to report category-level TPS, acceptance rate $\alpha$, and speedup $S$.
 
 ### 5. `spec_bench/reporter.py` (Visualization & Exporters)
 - **Rich TUI Tables:** Renders formatted terminal tables for overall parameter sweeps and per-task domain breakdowns.

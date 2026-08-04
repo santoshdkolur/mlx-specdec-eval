@@ -58,10 +58,24 @@ def test_cli_run_synthetic(tmp_path):
     assert (tmp_path / "report.html").exists()
 
 
+def test_cli_run_single_prompt():
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        "run",
+        "--target", "dummy_target",
+        "--draft", "dummy_draft",
+        "--prompt-id", "code_quicksort",
+        "--skip-preflight"
+    ])
+    assert result.exit_code == 0
+    assert "Prompts: 1" in result.output
+
+
+
 def test_cli_clean():
     runner = CliRunner()
     result = runner.invoke(main, ["clean"])
     assert result.exit_code == 0
-    assert "Cleaning up spec-bench artifacts" in result.output
+    assert "Cleaning up mlx-specdec-eval artifacts" in result.output
 
 

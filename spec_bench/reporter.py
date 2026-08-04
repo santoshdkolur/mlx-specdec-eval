@@ -1,5 +1,5 @@
 """
-Reporter & Exporters Module for spec-bench.
+Reporter & Exporters Module for mlx-specdec-eval.
 Renders Rich TUI terminal tables and exports results to JSON, Markdown, and interactive HTML.
 """
 
@@ -23,7 +23,7 @@ def render_tui_summary(results: Dict[str, Any]):
     best_speedup = results.get("best_speedup", 1.0)
 
     header_text = Text()
-    header_text.append("🚀 spec-bench Speculative Decoding Report\n", style="bold cyan")
+    header_text.append("🚀 mlx-specdec-eval Speculative Decoding Report\n", style="bold cyan")
     header_text.append(f"Target Model: {target_model}\n", style="bold white")
     header_text.append(f"Draft Model:  {draft_model}\n", style="dim white")
 
@@ -117,7 +117,7 @@ def export_markdown(results: Dict[str, Any], filepath: str):
     k_sweeps = results.get("k_sweeps", {})
 
     md_lines = [
-        f"# `spec-bench` Speculative Decoding Report",
+        f"# `mlx-specdec-eval` Speculative Decoding Report",
         "",
         f"- **Target Model:** `{target_model}`",
         f"- **Draft Model:** `{draft_model}`",
@@ -166,7 +166,7 @@ def export_html(results: Dict[str, Any], filepath: str):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>spec-bench Report</title>
+    <title>mlx-specdec-eval Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 2rem; }
@@ -188,7 +188,7 @@ def export_html(results: Dict[str, Any], filepath: str):
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 spec-bench Speculative Decoding Report</h1>
+            <h1>🚀 mlx-specdec-eval Speculative Decoding Report</h1>
             <div class="subtitle">Target: {{ results.target_model }} | Draft: {{ results.draft_model }}</div>
         </div>
 

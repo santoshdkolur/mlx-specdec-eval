@@ -1,3 +1,3 @@
 """
-Test Suite for spec-bench
+Test Suite for mlx-specdec-eval
 """

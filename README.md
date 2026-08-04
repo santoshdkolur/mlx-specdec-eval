@@ -80,28 +80,42 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 ### 1. Verify System Environment
 Ensure Apple Silicon Metal GPU and dependencies are configured:
 ```bash
-spec-bench check-env
+mlx-specdec-eval check-env
 ```
 
 ### 2. Pre-Flight Model Compatibility Check
 Check tokenizer alignment and system RAM footprints without downloading heavy weights:
 ```bash
-spec-bench validate \
+mlx-specdec-eval validate \
   --target mlx-community/Llama-3.2-3B-Instruct-4bit \
   --draft mlx-community/Llama-3.2-1B-Instruct-4bit
 ```
 
 ### 3. Run Benchmark Sweeps & Export Visual Dashboard
-Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5, 7\}$ and export interactive reports:
+Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5\}$ and export interactive reports (using `mlx-specdec-eval` or `spec-bench`):
 ```bash
 spec-bench run \
-  --target mlx-community/Llama-3.2-3B-Instruct-4bit \
-  --draft mlx-community/Llama-3.2-1B-Instruct-4bit \
-  --num-draft-tokens 3,5,7 \
-  --export-html report.html \
-  --export-markdown summary.md \
-  --export-json results.json \
-  --force
+  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
+  --num-draft-tokens 3,5 \
+  --export-html report.html
+```
+
+#### Evaluate a Single Prompt ID or Custom Prompt String
+```bash
+# Evaluate a specific prompt by ID (e.g. code_quicksort, reason_math_proof)
+spec-bench run \
+  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
+  --prompt-id code_quicksort \
+  --num-draft-tokens 3
+
+# Evaluate a custom prompt string directly
+spec-bench run \
+  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
+  --prompt "Write a Python implementation of the Quicksort algorithm" \
+  --num-draft-tokens 3
 ```
 
 ### 4. Open Interactive Dashboard
@@ -109,19 +123,20 @@ spec-bench run \
 open report.html
 ```
 
+
 ### 5. Inspect Evaluation Prompts
 List the 20 built-in prompts across Code, Reasoning, Chat, and Prose categories:
 ```bash
-spec-bench prompts
+mlx-specdec-eval prompts
 ```
 
 ### 6. Clean Artifacts & Downloaded Models
 ```bash
 # Clean local report files
-spec-bench clean
+mlx-specdec-eval clean
 
 # Clean local report files AND untracked downloaded models in ./models/
-spec-bench clean --all
+mlx-specdec-eval clean --all
 ```
 
 ---
