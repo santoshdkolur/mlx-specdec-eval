@@ -61,8 +61,9 @@ Executes speculative decoding benchmarks and baseline comparisons across target 
 * `--prompt TEXT`: Run evaluation on a single custom prompt string.
 * `--max-tokens INTEGER`: Maximum tokens to generate per prompt (default: `128`).
 * `--temp FLOAT`: Generation temperature (default: `0.0`).
-* `--warmup INTEGER`: Number of warmup runs prior to timing (default: `1`).
-* `--repeats INTEGER`: Number of benchmark repeats per prompt (default: `2`).
+* `--warmup INTEGER`: Number of warmup runs prior to timing (default: `1`). Pre-compiles Metal GPU sequence shaders and warms unified memory cache.
+* `--repeats INTEGER`: Number of benchmark repeats per prompt (default: `2`). Runs each prompt $N$ times and averages TPS, speedup, and acceptance rates across runs.
+
 * `--category TEXT`: Prompt category to evaluate (`code`, `reasoning`, `chat`, `prose`, or `all`; default: `all`).
 * `--prompts-file PATH`: Path to a custom JSON prompts file.
 * `--export-json PATH`: Output JSON log filepath.

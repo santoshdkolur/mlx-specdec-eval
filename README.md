@@ -110,6 +110,23 @@ spec-bench run \
   --num-draft-tokens 3
 ```
 
+#### Advanced Control Options (Warmup & Repeats)
+- **`--warmup N` (Default: `1`)**: Controls the number of warmup runs per model and draft length $K$. Warms up GPU cache and pre-compiles Metal sequence length shaders so compilation latency is excluded from benchmark timing.
+- **`--repeats N` (Default: `2`)**: Runs each prompt $N$ times and computes the arithmetic mean across runs for maximum metric consistency.
+- **`--category CAT` (Default: `all`)**: Filter evaluation by task domain (`code`, `reasoning`, `chat`, `prose`).
+
+```bash
+# Example: 3 warmup runs + 3 repeats averaged together for reasoning prompts
+spec-bench run \
+  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
+  --category reasoning \
+  --warmup 3 \
+  --repeats 3 \
+  --num-draft-tokens 3
+```
+
+
 ### 4. Open Interactive Dashboard
 ```bash
 open report.html
