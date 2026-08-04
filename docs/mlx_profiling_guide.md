@@ -23,14 +23,16 @@ draft_model, _ = load("mlx-community/Llama-3.2-1B-Instruct-4bit")
 
 ## 2. Profiling Step Loop
 
-To record exact acceptance rates ($\alpha$), time-to-first-token, and latency per token step, `mlx-specdec-eval` iterates through MLX step generators:
+To record exact acceptance rates ($\alpha$), time-to-first-token, and latency per token step, `spec-bench` iterates through MLX step generators:
 
 ### Metrics Captured Per Generation Run
 
 1. **Prefill Latency ($T_{\text{prefill}}$):** Time taken to process input prompt tokens and generate the initial KV cache.
-2. **Decode Latency ($T_{\text{decode}}$):** Time taken to run generation steps.
-3. **Draft Acceptance Trace:** Array of accepted tokens per draft verification step.
-4. **Peak Metal Memory:** Queried using `mlx.core.metal.get_peak_memory()` in bytes.
+2. **Decode Latency ($T_{\text{decode}}$):** Time taken to generate output tokens (measured from timestamp of first token yield $n=0$ to final token yield).
+3. **Generation Decode TPS ($\text{TPS}_{\text{decode}}$):** Calculated as $N_{\text{generated\_tokens}} / T_{\text{decode}}$, isolating generation throughput from prefill latency.
+4. **Draft Acceptance Trace:** Array of accepted tokens per draft verification step (`from_draft = True`).
+5. **Peak Metal Memory:** Queried using `mlx.core.metal.get_peak_memory()` in bytes.
+
 
 ---
 

@@ -99,9 +99,13 @@ When $\alpha \to 1$, $E[\text{Tokens}] \to K + 1$.
 
 ### C. Tokens Per Second (TPS)
 
-Generation throughput is calculated as:
+Generation throughput is calculated during the **decode phase** (time from first generated token to completion), isolating generation speed from prompt prefill latency:
 
-$$\text{TPS} = \frac{N_{\text{total\_tokens}}}{T_{\text{wall\_clock}}}$$
+$$\text{TPS} = \frac{N_{\text{generated\_tokens}}}{T_{\text{decode\_time}}}$$
+
+- **Decode Latency ($T_{\text{decode\_time}}$):** Measured from timestamp of initial token yield ($n=0$) to final token yield.
+- **Total TPS (Inclusive of Prefill):** Also recorded for full profiling transparency as $\text{Total TPS} = \frac{N_{\text{generated\_tokens}}}{T_{\text{elapsed\_total}}}$.
+
 
 ---
 

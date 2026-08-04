@@ -42,13 +42,14 @@ This document details the software architecture, modular decomposition, data flo
 
 ### 1. `spec_bench/cli.py` (Control & Entry Point)
 Powered by `click` and `rich`, providing structured subcommands:
-- `mlx-specdec-eval check-env`: System diagnostics (Python version, `.venv`, Darwin OS, Metal acceleration).
-- `mlx-specdec-eval validate`: Pre-flight compatibility & RAM footprint checks.
-- `mlx-specdec-eval run`: Benchmark generation loops with multi-$K$ parameter sweeps.
-- `mlx-specdec-eval prompts`: Inspection of evaluation prompts suite.
-- `mlx-specdec-eval report`: Post-processing saved JSON logs into HTML or Markdown reports.
-- `mlx-specdec-eval clean`: Artifacts and optional Hugging Face model cache cleanup (`--all`).
-- **Session-Local Model Cache:** Automatically sets `HF_HOME=./models` dynamically so downloads remain local to the project workspace and untracked by Git.
+- `spec-bench check-env`: System diagnostics (Python version, `.venv`, Darwin OS, Metal acceleration).
+- `spec-bench validate`: Pre-flight compatibility & RAM footprint checks.
+- `spec-bench run`: Benchmark generation loops with multi-$K$ parameter sweeps.
+- `spec-bench prompts`: Inspection of evaluation prompts suite.
+- `spec-bench report`: Post-processing saved JSON logs into HTML or Markdown reports.
+- `spec-bench clean`: Artifacts and optional Hugging Face model cache cleanup (`--all`).
+- **Hugging Face Cache Management:** Uses default system Hugging Face cache (`~/.cache/huggingface/hub/`) to load previously downloaded weights instantly without re-downloading.
+
 
 ### 2. `spec_bench/validator.py` (Fail-Fast Verification Engine)
 - `validate_system_environment()`: Verifies Python 3.10+, virtual environment activation, macOS Darwin platform, and Apple Silicon Metal backend.
