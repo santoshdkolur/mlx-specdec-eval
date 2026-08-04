@@ -15,10 +15,11 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 > - If the token acceptance rate ($\alpha$) is low ($\le 50\%$), candidate tokens are rejected, causing **performance degradation** ($S < 1.0\times$).
 > - If the target model is already small & fast (e.g. 3B parameters running at 35 TPS), draft model overhead can exceed parallel verification gains.
 
-**`spec-bench` provides a scientific framework to answer:**
+**`spec-bench` provides an empirical profiling utility to measure:**
 - Is speculative decoding actually faster on my specific Mac setup?
-- What is the exact token acceptance rate $\alpha$ across Code vs Chat tasks?
+- What is the token acceptance rate $\alpha$ across Code vs Chat tasks?
 - What is the optimal candidate draft length $K$?
+
 
 ---
 
@@ -199,9 +200,10 @@ Explore our technical documentation suite under `docs/`:
 
 ---
 
-## Feedback & Open Source Contributions
+## Feedback & Contributions
 
 I would love your feedback and contributions to make `mlx-specdec-eval` even better!
+
 
 If you run into issues, have ideas for new features (e.g., support for new quantization schemes, dynamic $K$ scheduling, or additional task domain prompts), or want to share benchmark results from your Mac:
 

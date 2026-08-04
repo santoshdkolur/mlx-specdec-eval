@@ -15,7 +15,7 @@ Speculative Decoding addresses the memory-bandwidth bottleneck of auto-regressiv
 
 ---
 
-## 2. Rejection Sampling & MLX Verification Guarantee
+## 2. Rejection Sampling & MLX Verification Mechanics
 
 For each draft token $x_i$ proposed by $M_D$, a standard speculative decoding verification step accepts $x_i$ using a probabilistic rejection sampling policy:
 
@@ -30,10 +30,11 @@ In the `mlx-lm` framework, verification is implemented as a **greedy token equal
 - If `target_token == draft_token` $\rightarrow$ Draft token accepted.
 - If `target_token != draft_token` $\rightarrow$ Draft token rejected; target model's generated token is substituted immediately, and all subsequent draft tokens in the current round are discarded.
 
-For greedy decoding ($T = 0.0$), this implementation is mathematically identical to the original paper's probabilistic rejection sampling algorithm.
+For greedy decoding ($T = 0.0$), this implementation is mathematically equivalent to the original paper's probabilistic rejection sampling algorithm.
 
-### Output Identity Guarantee
-- **Greedy Decoding ($T=0.0$):** Speculative decoding is guaranteed to produce output that is **100% token-for-token identical** to running Target Model $M_T$ alone ($EM = 1.0$).
+### Output Equivalence
+- **Greedy Decoding ($T=0.0$):** In greedy mode, speculative decoding produces output identical to running Target Model $M_T$ alone ($EM = 1.0$).
+
 
 ---
 

@@ -19,7 +19,8 @@ Welcome to the documentation suite for `mlx-specdec-eval`, an evaluation tool fo
 
 Running local LLMs on Apple Silicon requires balancing compute throughput with Unified Memory Bandwidth. Speculative Decoding pairs a small, low-latency **Draft Model** ($M_D$) with a larger **Target Model** ($M_T$). 
 
-`mlx-specdec-eval` provides an automated, scientific framework to answer:
+`mlx-specdec-eval` provides an empirical profiling utility to measure:
+
 - *Is speculative decoding actually faster on my specific Mac configuration?*
 - *What is the token acceptance rate $\alpha$ for my prompt domain?*
 - *What is the optimal draft token count $K$?*
