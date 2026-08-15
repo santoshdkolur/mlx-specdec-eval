@@ -292,63 +292,75 @@ def run_cmd(
         engine = MLXSpeculativeEngine(target, draft)
         engine.load_models()
 
-        # Warmup runs across baseline, all K shapes, and adaptive
-        if warmup > 0 and selected_prompts:
-            console.print("🔥 Running Initial Warmup Iterations (Compiling Metal GPU Shaders)...")
-            warm_prompt = selected_prompts[0]["prompt"]
-            for _ in range(warmup):
-                engine.run_baseline(warm_prompt, max_tokens=min(32, max_tokens), temp=temp)
-                # Warm up all possible K values to prevent dynamic shape compilation spikes
-                all_possible_k = sorted(list(set(K_values + list(range(min_k, max_k + 1)))))
-                for k_val in all_possible_k:
-                    engine.run_speculative(warm_prompt, num_draft_tokens=k_val, max_tokens=min(32, max_tokens), temp=temp)
-                if adaptive:
-                    engine.run_adaptive_speculative(warm_prompt, min_k=min_k, max_k=max_k, initial_k=initial_k, max_tokens=min(32, max_tokens), temp=temp)
+        try:
+            # Warmup runs across baseline, all K shapes, and adaptive
+            if warmup > 0 and selected_prompts:
+                console.print("🔥 Running Initial Warmup Iterations (Compiling Metal GPU Shaders)...")
+                warm_prompt = selected_prompts[0]["prompt"]
+                for _ in range(warmup):
+                    engine.run_baseline(warm_prompt, max_tokens=min(32, max_tokens), temp=temp)
+                    # Warm up all possible K values to prevent dynamic shape compilation spikes
+                    all_possible_k = sorted(list(set(K_values + list(range(min_k, max_k + 1)))))
+                    for k_val in all_possible_k:
+                        engine.run_speculative(warm_prompt, num_draft_tokens=k_val, max_tokens=min(32, max_tokens), temp=temp)
+                    if adaptive:
+                        engine.run_adaptive_speculative(warm_prompt, min_k=min_k, max_k=max_k, initial_k=initial_k, max_tokens=min(32, max_tokens), temp=temp)
 
-        # 1. Baseline Target Runs
-        console.print("📊 Executing Baseline (Non-Speculative) Runs...")
-        baseline_runs = []
-        for p in selected_prompts:
-            for _ in range(repeats):
-                res = engine.run_baseline(p["prompt"], max_tokens=max_tokens, temp=temp)
-                res["prompt_id"] = p["id"]
-                res["category"] = p["category"]
-                baseline_runs.append(res)
-
-        # 2. Fixed Speculative Runs across K
-        runs_by_k = {}
-        for k in K_values:
-            console.print(f"⚡ Executing Fixed Speculative Runs for K={k}...")
-            k_runs = []
+            # 1. Baseline Target Runs
+            console.print("📊 Executing Baseline (Non-Speculative) Runs...")
+            baseline_runs = []
             for p in selected_prompts:
                 for _ in range(repeats):
-                    res = engine.run_speculative(p["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
+                    res = engine.run_baseline(p["prompt"], max_tokens=max_tokens, temp=temp)
                     res["prompt_id"] = p["id"]
                     res["category"] = p["category"]
-                    k_runs.append(res)
-            runs_by_k[k] = k_runs
+                    baseline_runs.append(res)
 
-        # 3. Adaptive Speculative Runs
-        adaptive_runs = []
-        if adaptive:
-            console.print(f"🧠 Executing Adaptive Speculative Runs (Dynamic K∈[{min_k}..{max_k}])...")
-            for p in selected_prompts:
-                for _ in range(repeats):
-                    res = engine.run_adaptive_speculative(
-                        p["prompt"],
-                        min_k=min_k,
-                        max_k=max_k,
-                        initial_k=initial_k,
-                        max_tokens=max_tokens,
-                        temp=temp
-                    )
-                    res["prompt_id"] = p["id"]
-                    res["category"] = p["category"]
-                    adaptive_runs.append(res)
-        else:
-            adaptive_runs = None
+            # 2. Fixed Speculative Runs across K
+            runs_by_k = {}
+            for k in K_values:
+                console.print(f"⚡ Executing Fixed Speculative Runs for K={k}...")
+                k_runs = []
+                for p in selected_prompts:
+                    for _ in range(repeats):
+                        res = engine.run_speculative(p["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
+                        res["prompt_id"] = p["id"]
+                        res["category"] = p["category"]
+                        k_runs.append(res)
+                runs_by_k[k] = k_runs
 
-        results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs, adaptive_runs)
+            # 3. Adaptive Speculative Runs
+            adaptive_runs = []
+            if adaptive:
+                console.print(f"🧠 Executing Adaptive Speculative Runs (Dynamic K∈[{min_k}..{max_k}])...")
+                for p in selected_prompts:
+                    for _ in range(repeats):
+                        res = engine.run_adaptive_speculative(
+                            p["prompt"],
+                            min_k=min_k,
+                            max_k=max_k,
+                            initial_k=initial_k,
+                            max_tokens=max_tokens,
+                            temp=temp
+                        )
+                        res["prompt_id"] = p["id"]
+                        res["category"] = p["category"]
+                        adaptive_runs.append(res)
+            else:
+                adaptive_runs = None
+
+            results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs, adaptive_runs)
+
+        except ValueError as e:
+            if "trimmable prompt cache" in str(e):
+                console.print(f"\n❌ [bold red]Architecture Incompatibility:[/bold red] {e}")
+                console.print("\n💡 [yellow]Explanation:[/yellow] Speculative decoding requires rewinding the KV cache when draft tokens are rejected.")
+                console.print("   This model architecture uses [cyan]ArraysCache[/cyan] (recurrent/sliding window cache) which does not yet support cache trimming in MLX.")
+                console.print("   Please use models with standard trimmable transformer attention (e.g. [bold cyan]Qwen2.5[/bold cyan], [bold cyan]Qwen2.5-Coder[/bold cyan], [bold cyan]Llama-3.2[/bold cyan], or [bold cyan]DeepSeek-R1-Distill-Qwen[/bold cyan]).\n")
+                sys.exit(1)
+            else:
+                raise e
+
 
 
     # Render TUI table summary
