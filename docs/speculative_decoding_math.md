@@ -143,3 +143,34 @@ For speculative decoding to achieve speedup $S > 1.0\times$, the following inequ
 $$\frac{\text{Size}(M_D)}{\text{Size}(M_T)} \times K + \frac{T_{\text{overhead}}}{T_{\text{target\_step}}} < \alpha \times K$$
 
 `mlx-specdec-eval` parameter sweeps identify the optimal $K$ value where speedup $S$ is maximized on a given Mac configuration.
+
+---
+
+## 5. Adaptive $K$ Mathematical Formulation
+
+When token predictability fluctuates across responses, static $K$ results in either under-speculation ($\alpha \approx 1$) or over-speculation ($\alpha \approx 0$). Adaptive $K$ modulates $K_t$ dynamically.
+
+### A. Round Acceptance & EMA Formulation
+
+At round $t$, given current depth $K_t$ and accepted draft tokens $n \in [0, K_t]$:
+
+$$\alpha_{\text{round}} = \frac{n}{K_t}$$
+
+The historical acceptance rate is updated via Exponential Moving Average (EMA) with smoothing factor $\beta \in [0, 1]$:
+
+$$\alpha_{\text{EMA}}^{(t)} = \beta \cdot \alpha_{\text{EMA}}^{(t-1)} + (1 - \beta) \cdot \alpha_{\text{round}}$$
+
+### B. Dynamic Transition Policy
+
+The depth for round $t+1$ is adjusted dynamically:
+
+$$K_{t+1} = \begin{cases} \min(K_t + 1, K_{\max}) & \text{if } n = K_t \text{ or } \alpha_{\text{round}} \ge 0.75 \\ \max(K_t - 1, K_{\min}) & \text{if } n = 0 \text{ or } \alpha_{\text{round}} \le 0.33 \\ K_t & \text{otherwise} \end{cases}$$
+
+### C. Mean Effective Speculation Depth ($\bar{K}$)
+
+$$\bar{K} = \frac{1}{R} \sum_{r=1}^{R} K_r$$
+
+### D. Wasted Draft Ratio ($\text{WDR}$)
+
+$$\text{WDR} = \frac{N_{\text{proposed}} - N_{\text{accepted}}}{N_{\text{total\_generated}}}$$
+

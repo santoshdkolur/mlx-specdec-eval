@@ -28,10 +28,11 @@ Local LLM inference on Apple Silicon is heavily bottlenecked by **Memory Bandwid
 - **Fail-Fast Pre-Flight Check (`spec-bench validate`):** Verifies tokenizer vocabulary identity, special tokens (`bos`, `eos`, `pad`), and estimates Apple Silicon RAM/VRAM footprints before downloading heavy model weights.
 - **System Diagnostic Check (`spec-bench check-env`):** Verifies Python 3.10+, active virtual environment (`.venv`), macOS Darwin, and Apple Silicon Metal GPU availability.
 - **Native MLX Profiling Engine (`spec-bench run`):** Profiles acceptance rates ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), peak Metal memory, and exact output correctness.
+- **Adaptive $K$ Speculative Scheduling (`--adaptive`):** Dynamic draft length modulation ($K \in [K_{\min}, K_{\max}]$) using zero-overhead round-boundary exponential moving average (EMA) feedback.
+- **Head-to-Head 3-Way Comparisons:** Benchmark Baseline ($M_T$ only) vs Fixed $K$ Sweeps vs Adaptive $K$ in a single unified matrix.
 - **Task Domain Breakdown:** Analyzes performance separately across **Code**, **Reasoning**, **Chat**, and **Prose** prompt categories.
-- **Multi-$K$ Draft Token Sweeps:** Evaluates $K \in \{3, 5, 7\}$ in a single run to identify peak speedup settings.
+- **Output Determinism Verification:** Automatically verifies token-for-token Exact Match ($EM = 100\%$) across all speculative modes at $T=0.0$.
 - **Visual HTML Dashboard & Exports:** Formats Rich terminal tables and exports interactive Chart.js HTML dashboards, Markdown summaries, and JSON logs.
-- **Untracked Session-Local Storage (`./models/`):** Automatically routes Hugging Face model downloads into an untracked local `./models/` directory, preventing Git repository pollution.
 
 ---
 
@@ -50,7 +51,7 @@ spec-bench --help
 | **`spec-bench --help`** | Displays global help and list of subcommands. | General entrypoint documentation. |
 | **`spec-bench check-env --help`** | `spec-bench check-env [--verbose]` | Diagnostics for Python, `.venv`, Darwin OS, and Metal GPU backend. |
 | **`spec-bench validate --help`** | `spec-bench validate -t TARGET -d DRAFT` | Pre-flight compatibility & RAM footprint check options. |
-| **`spec-bench run --help`** | `spec-bench run -t TARGET -d DRAFT [FLAGS]` | Parameters for sweeps ($K$), single prompt options, and report exports. |
+| **`spec-bench run --help`** | `spec-bench run -t TARGET -d DRAFT [FLAGS]` | Parameters for sweeps ($K$), adaptive $K$, single prompt options, and report exports. |
 | **`spec-bench prompts --help`** | `spec-bench prompts [--category CAT]` | Options to inspect built-in prompt categories. |
 | **`spec-bench clean --help`** | `spec-bench clean [--all]` | Options to remove generated reports or local Hugging Face cache. |
 
@@ -63,7 +64,9 @@ spec-bench --help
 | **Acceptance Rate ($\alpha$)** | $\alpha = \frac{\text{Accepted Draft Tokens}}{\text{Total Proposed Draft Tokens}}$ | Measures prediction alignment between draft & target models ($0\% - 100\%$). |
 | **Tokens Per Second (TPS)** | $\text{TPS} = \frac{N_{\text{total\_tokens}}}{T_{\text{decode\_time}}}$ | Real-time generation throughput during decode phase. |
 | **Speedup Factor ($S$)** | $S = \frac{\text{TPS}_{\text{speculative}}}{\text{TPS}_{\text{baseline}}}$ | Ratio comparing speculative decoding throughput to baseline target generation ($S > 1.0\times$ = Accelerated). |
-| **Output Match Rate** | $\text{Exact Match } (EM = 100\%)$ | Verifies token-for-token output identity against baseline target generation. |
+| **Mean Effective $K$ ($\bar{K}$)** | $\bar{K} = \frac{1}{R} \sum K_r$ | Average draft length selected dynamically by the Adaptive $K$ scheduler. |
+| **Wasted Draft Ratio ($\text{WDR}$)** | $\text{WDR} = \frac{N_{\text{proposed}} - N_{\text{accepted}}}{N_{\text{generated}}}$ | Percentage of proposed draft tokens discarded due to target model rejection. |
+| **Output Match Rate** | $\text{Exact Match } (EM = 100\%)$ | Verifies token-for-token output identity against baseline target generation at $T=0.0$. |
 | **Peak Memory Footprint** | Measured via `mlx.core.metal.get_peak_memory()` | Peak Metal Unified VRAM allocation in MB. |
 
 ---
@@ -84,14 +87,18 @@ spec-bench validate \
   --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit
 ```
 
-### 3. Run Benchmark Sweeps & Export Visual Dashboard
-Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5\}$ and export interactive reports:
+### 3. Run Benchmark (Baseline + Fixed Sweeps + Adaptive $K$)
+Execute speculative decoding benchmarks across draft lengths $K \in \{3, 5\}$ and dynamic Adaptive $K \in [1..5]$, exporting interactive reports:
 ```bash
 spec-bench run \
   --target mlx-community/Qwen2.5-7B-Instruct-4bit \
   --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
   --num-draft-tokens 3,5 \
-  --export-html report.html
+  --adaptive \
+  --min-k 1 \
+  --max-k 5 \
+  --export-html report.html \
+  --export-markdown summary.md
 ```
 
 #### Evaluate a Single Prompt ID or Custom Prompt String
@@ -101,7 +108,8 @@ spec-bench run \
   --target mlx-community/Qwen2.5-7B-Instruct-4bit \
   --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
   --prompt-id code_quicksort \
-  --num-draft-tokens 3
+  --num-draft-tokens 3 \
+  --adaptive
 
 # Evaluate a custom prompt string directly
 spec-bench run \
@@ -112,77 +120,9 @@ spec-bench run \
 ```
 
 #### Advanced Control Options (Warmup & Repeats)
-- **`--warmup N` (Default: `1`)**: Controls the number of warmup runs per model and draft length $K$. Warms up GPU cache and pre-compiles Metal sequence length shaders so compilation latency is excluded from benchmark timing.
+- **`--warmup N` (Default: `1`)**: Pre-compiles all Metal sequence length shaders for all candidate $K$ values to eliminate JIT compilation spikes.
 - **`--repeats N` (Default: `2`)**: Runs each prompt $N$ times and computes the arithmetic mean across runs for maximum metric consistency.
 - **`--category CAT` (Default: `all`)**: Filter evaluation by task domain (`code`, `reasoning`, `chat`, `prose`).
-
-```bash
-# Example: 3 warmup runs + 3 repeats averaged together for reasoning prompts
-spec-bench run \
-  --target mlx-community/Qwen2.5-7B-Instruct-4bit \
-  --draft mlx-community/Qwen2.5-0.5B-Instruct-4bit \
-  --category reasoning \
-  --warmup 3 \
-  --repeats 3 \
-  --num-draft-tokens 3
-```
-
-
-### 4. Open Interactive Dashboard
-```bash
-open report.html
-```
-
-### 5. Inspect Evaluation Prompts
-List the 20 built-in prompts across Code, Reasoning, Chat, and Prose categories:
-```bash
-spec-bench prompts
-```
-
-### 6. Clean Artifacts & Downloaded Models
-```bash
-# Clean local report files
-spec-bench clean
-
-# Clean local report files AND untracked downloaded models in ./models/
-spec-bench clean --all
-```
-
-
----
-
-## Repository & Output Structure
-
-```text
-mlx-specdec-eval/
-├── pyproject.toml              # Dependencies & CLI entry point
-├── LICENSE                     # MIT License
-├── README.md                   # Setup & usage guide
-├── .gitignore                  # Ignores .venv, models/, caches, and output reports
-├── configs/
-│   └── default_prompts.json    # 20 evaluation prompts (Code, Reasoning, Chat, Prose)
-├── docs/                       # Architectural & mathematical documentation suite
-│   ├── index.md
-│   ├── architecture.md
-│   ├── environment_setup.md
-│   ├── speculative_decoding_math.md
-│   ├── preflight_validation.md
-│   ├── mlx_profiling_guide.md
-│   ├── cli_reference.md
-│   └── user_questionnaire_backlog.md
-├── models/                     # Untracked local directory for downloaded HF models
-├── spec_bench/
-│   ├── __init__.py
-│   ├── cli.py                  # Click CLI interface
-│   ├── validator.py            # Pre-flight environment, tokenizer & memory checks
-│   ├── engine_mlx.py           # Native MLX speculative runner
-│   ├── metrics.py              # Math engine for alpha, TPS, speedup, domain breakdown
-│   └── reporter.py             # Rich TUI formatting & HTML/Markdown/JSON exports
-└── tests/                      # 13 automated unit & integration tests (pytest)
-    ├── test_validator.py
-    ├── test_metrics.py
-    └── test_cli.py
-```
 
 ---
 
@@ -190,6 +130,7 @@ mlx-specdec-eval/
 
 Explore our technical documentation suite under `docs/`:
 
+- **[Adaptive $K$ Speculative Decoding Guide](docs/adaptive_k_guide.md):** Detailed guide to dynamic draft scheduling, hardware bottlenecks, and EMA algorithms.
 - **[Architecture & System Design](docs/architecture.md):** Modular breakdown, control flow, and data pipelines.
 - **[Environment Setup Guide](docs/environment_setup.md):** Python `.venv` management and Metal prerequisites.
 - **[Speculative Decoding Math](docs/speculative_decoding_math.md):** Rejection sampling equations, probability bounds, and memory bandwidth tradeoffs.

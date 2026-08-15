@@ -93,14 +93,18 @@ def resolve_model_size_gb(model_path_or_id: str) -> float:
 
     # Dynamic fallback estimate based on model size hints in repo name
     lower_id = model_path_or_id.lower()
-    if "1b" in lower_id:
+    if "0.5b" in lower_id:
+        return 0.4
+    elif "1b" in lower_id:
         return 0.8
-    elif "2b" in lower_id:
-        return 1.2
-    elif "3b" in lower_id:
+    elif "1.5b" in lower_id:
+        return 1.1
+    elif "2b" in lower_id or "3b" in lower_id:
         return 1.8
     elif "7b" in lower_id or "8b" in lower_id:
         return 4.2
+    elif "14b" in lower_id:
+        return 8.5
     return 2.5
 
 
@@ -194,10 +198,11 @@ def validate_tokenizer_compatibility(target_path: str, draft_path: str) -> Tuple
 def validate_memory_footprint(
     target_path: str,
     draft_path: str,
-    safety_buffer_gb: float = 2.0
+    safety_buffer_gb: float = 1.0
 ) -> Dict[str, Any]:
     """
-    Calculates estimated VRAM/RAM footprint and compares against available Apple Silicon RAM.
+    Calculates estimated VRAM/RAM footprint and compares against Apple Silicon Unified Memory limits.
+    On macOS Apple Silicon, MLX can allocate up to ~85% of total unified RAM.
     """
     ram_info = psutil.virtual_memory()
     available_ram_gb = ram_info.available / (1024 ** 3)
@@ -205,10 +210,11 @@ def validate_memory_footprint(
 
     target_size_gb = resolve_model_size_gb(target_path)
     draft_size_gb = resolve_model_size_gb(draft_path)
-    estimated_kv_cache_gb = 1.0
+    estimated_kv_cache_gb = 0.5
 
-    total_required_gb = target_size_gb + draft_size_gb + estimated_kv_cache_gb + safety_buffer_gb
-    is_safe = available_ram_gb >= total_required_gb
+    total_model_footprint_gb = target_size_gb + draft_size_gb + estimated_kv_cache_gb
+    max_allocatable_ram_gb = total_ram_gb * 0.85
+    is_safe = max_allocatable_ram_gb >= (total_model_footprint_gb + safety_buffer_gb)
 
     return {
         "available_ram_gb": round(available_ram_gb, 2),
@@ -216,7 +222,8 @@ def validate_memory_footprint(
         "target_size_gb": round(target_size_gb, 2),
         "draft_size_gb": round(draft_size_gb, 2),
         "estimated_kv_cache_gb": round(estimated_kv_cache_gb, 2),
-        "safety_buffer_gb": round(safety_buffer_gb, 2),
-        "total_required_gb": round(total_required_gb, 2),
-        "is_safe": is_safe
+        "total_required_gb": round(total_model_footprint_gb, 2),
+        "is_safe": is_safe,
+        "is_tight": available_ram_gb < total_model_footprint_gb
     }
+

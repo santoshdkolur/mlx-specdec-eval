@@ -4,13 +4,14 @@ Welcome to the documentation suite for `mlx-specdec-eval`, an evaluation tool fo
 
 ## Documentation Structure
 
-1. **[Architecture](architecture.md)**: Detailed system design, component breakdown, module interactions, and software patterns.
-2. **[Environment Setup](environment_setup.md)**: Guide to setting up Python 3.10+, virtual environments (`.venv`), Apple Silicon Metal prerequisites, and MLX installation.
-3. **[Speculative Decoding Math](speculative_decoding_math.md)**: Theoretical foundation, acceptance rate ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), and memory bandwidth tradeoffs.
-4. **[Pre-Flight Validation Engine](preflight_validation.md)**: Tokenizer compatibility checks, vocabulary identity verification, and Apple Silicon RAM/VRAM footprint estimation algorithms.
-5. **[MLX Profiling Guide](mlx_profiling_guide.md)**: How `mlx-specdec-eval` hooks into `mlx-lm` step loops to collect per-token metrics, latency breakdowns, and peak Metal memory.
-6. **[CLI Reference](cli_reference.md)**: Complete guide to command-line interface subcommands (`run`, `validate`, `check-env`, `prompts`, `report`) and parameter sweeps.
-7. **[User Questionnaire Backlog](user_questionnaire_backlog.md)**: Log of open topics and concepts reserved for future deep dives.
+1. **[Adaptive K Guide](adaptive_k_guide.md)**: Dynamic draft length modulation ($K \in [K_{\min}, K_{\max}]$), zero-overhead round-boundary EMA scheduling, and empirical analysis.
+2. **[Architecture](architecture.md)**: Detailed system design, component breakdown, module interactions, and software patterns.
+3. **[Environment Setup](environment_setup.md)**: Guide to setting up Python 3.10+, virtual environments (`.venv`), Apple Silicon Metal prerequisites, and MLX installation.
+4. **[Speculative Decoding Math](speculative_decoding_math.md)**: Theoretical foundation, acceptance rate ($\alpha$), Tokens Per Second (TPS), Speedup factor ($S$), and memory bandwidth tradeoffs.
+5. **[Pre-Flight Validation Engine](preflight_validation.md)**: Tokenizer compatibility checks, vocabulary identity verification, and Apple Silicon RAM/VRAM footprint estimation algorithms.
+6. **[MLX Profiling Guide](mlx_profiling_guide.md)**: How `mlx-specdec-eval` hooks into `mlx-lm` step loops to collect per-token metrics, latency breakdowns, and peak Metal memory.
+7. **[CLI Reference](cli_reference.md)**: Complete guide to command-line interface subcommands (`run`, `validate`, `check-env`, `prompts`, `report`) and parameter sweeps.
+8. **[User Questionnaire Backlog](user_questionnaire_backlog.md)**: Log of open topics and concepts reserved for future deep dives.
 
 
 ---
