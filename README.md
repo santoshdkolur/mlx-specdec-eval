@@ -154,5 +154,42 @@ If you run into issues, have ideas for new features (e.g., support for new quant
 
 ---
 
+## 🧪 Experimental: Adaptive $K$ (Dynamic Speculative Decoding)
+
+Standard Speculative Decoding uses a fixed candidate length $K$ (e.g. $K=3$ or $K=5$). However, token predictability varies across domains: code prompts often achieve acceptance rates $\alpha > 70\%$, while creative dialogue and prose drop below $35\%$, leading to high wasted draft ratios and performance degradation.
+
+Our **Adaptive $K$** engine dynamically modulates the candidate depth $K_t \in [K_{\min}, K_{\max}]$ between verification rounds using an Exponential Moving Average (EMA) acceptance rate feedback scheduler without introducing GPU-CPU synchronization stalls.
+
+For full mathematical theory, hardware bottleneck analysis on Apple Silicon, and empirical results, see the **[Adaptive $K$ Speculative Decoding Guide](docs/adaptive_k_guide.md)**.
+
+### Running Adaptive $K$ Evaluation
+
+```bash
+# Evaluate Baseline vs Fixed K sweeps vs Adaptive K on the Code prompt category
+spec-bench run \
+  --target mlx-community/Qwen2.5-Coder-7B-Instruct-4bit \
+  --draft mlx-community/Qwen2.5-Coder-0.5B-Instruct-4bit \
+  --category code \
+  --num-draft-tokens 3,5 \
+  --adaptive \
+  --min-k 1 \
+  --max-k 5 \
+  --initial-k 3 \
+  --export-html report.html \
+  --export-markdown summary.md
+```
+
+### CLI Parameters for Adaptive $K$
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--adaptive / --no-adaptive` | Flag | `True` | Enable or disable Adaptive $K$ evaluation alongside fixed parameter sweeps. |
+| `--min-k` | Integer | `1` | Minimum lower bound for speculation depth $K$. |
+| `--max-k` | Integer | `5` | Maximum upper bound for speculation depth $K$. |
+| `--initial-k` | Integer | `3` | Starting draft length for the initial verification round. |
+
+---
+
 ## License
 Released under the [MIT License](LICENSE).
+
