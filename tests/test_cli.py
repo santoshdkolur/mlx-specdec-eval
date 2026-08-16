@@ -72,10 +72,52 @@ def test_cli_run_single_prompt():
 
 
 
+def test_cli_run_adaptive_flags(tmp_path):
+    import json
+    runner = CliRunner()
+    json_out = str(tmp_path / "results_adaptive.json")
+
+    result = runner.invoke(main, [
+        "run",
+        "--target", "dummy_target",
+        "--draft", "dummy_draft",
+        "--num-draft-tokens", "3,5",
+        "--adaptive",
+        "--min-k", "2",
+        "--max-k", "6",
+        "--initial-k", "4",
+        "--export-json", json_out,
+        "--skip-preflight"
+    ])
+    assert result.exit_code == 0
+    assert "Head-to-Head" in result.output
+    assert "Adaptive" in result.output
+
+    with open(json_out, "r") as f:
+        data = json.load(f)
+    assert data["adaptive_summary"] is not None
+    assert "head_to_head" in data
+    assert "output_determinism" in data
+
+
+def test_cli_run_no_adaptive():
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        "run",
+        "--target", "dummy_target",
+        "--draft", "dummy_draft",
+        "--no-adaptive",
+        "--skip-preflight"
+    ])
+    assert result.exit_code == 0
+    assert "Adaptive: False" in result.output
+
+
 def test_cli_clean():
     runner = CliRunner()
     result = runner.invoke(main, ["clean"])
     assert result.exit_code == 0
     assert "Cleaning up mlx-specdec-eval artifacts" in result.output
+
 
 

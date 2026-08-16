@@ -86,15 +86,18 @@ def validate_cmd(target: str, draft: str, buffer_gb: float, force: bool):
 
     # 2. Memory Footprint Check
     mem_info = validate_memory_footprint(target, draft, buffer_gb)
-    console.print(f"  • [dim]System RAM Available:[/dim]  [bold]{mem_info['available_ram_gb']} GB[/bold] / {mem_info['total_ram_gb']} GB")
+    console.print(f"  • [dim]System RAM Available:[/dim]  [bold]{mem_info['available_ram_gb']} GB[/bold] / {mem_info['total_ram_gb']} GB Unified RAM")
     console.print(f"  • [dim]Target Model Footprint:[/dim] ~{mem_info['target_size_gb']} GB")
     console.print(f"  • [dim]Draft Model Footprint:[/dim]  ~{mem_info['draft_size_gb']} GB")
     console.print(f"  • [dim]Total Required Footprint:[/dim] ~{mem_info['total_required_gb']} GB")
 
     if mem_info["is_safe"]:
-        console.print("  ✓ [green]Unified Memory footprint is safe for Apple Silicon RAM.[/green]\n")
+        if mem_info.get("is_tight", False):
+            console.print("  ⚠️ [yellow]Note: Available RAM is tight, but total Unified Memory is sufficient for Metal dynamic allocation.[/yellow]\n")
+        else:
+            console.print("  ✓ [green]Unified Memory footprint is safe for Apple Silicon RAM.[/green]\n")
     else:
-        console.print(f"  ❌ [red]Out of Memory Risk![/red] Required ~{mem_info['total_required_gb']} GB exceeds available RAM {mem_info['available_ram_gb']} GB.\n")
+        console.print(f"  ❌ [red]Out of Memory Risk![/red] Required ~{mem_info['total_required_gb']} GB exceeds total Apple Silicon Unified Memory limits.\n")
 
     if (not tok_ok or not mem_info["is_safe"]) and not force:
         console.print("❌ [bold red]Pre-Flight Validation Failed![/bold red] Use --force to override.\n")
@@ -147,6 +150,10 @@ def prompts_cmd(category: str, prompts_file: Optional[str]):
 @click.option("--prompts-file", default=None, type=click.Path(exists=True), help="Path to custom JSON prompts file.")
 @click.option("--prompt-id", default=None, help="Filter evaluation to a single prompt ID (e.g. reason_math_proof, code_quicksort).")
 @click.option("--prompt", "single_prompt", default=None, help="Run evaluation on a single custom prompt string.")
+@click.option("--adaptive/--no-adaptive", "adaptive", default=True, help="Enable/disable Adaptive K evaluation (default: enabled).")
+@click.option("--min-k", default=1, type=int, help="Minimum draft tokens for Adaptive K (default: 1).")
+@click.option("--max-k", default=5, type=int, help="Maximum draft tokens for Adaptive K (default: 5).")
+@click.option("--initial-k", default=3, type=int, help="Initial draft tokens for Adaptive K (default: 3).")
 @click.option("--export-json", "export_json_path", default=None, help="Filepath to export JSON results.")
 @click.option("--export-markdown", "export_markdown_path", default=None, help="Filepath to export Markdown summary.")
 @click.option("--export-html", "export_html_path", default=None, help="Filepath to export visual HTML report.")
@@ -166,6 +173,10 @@ def run_cmd(
     prompts_file: Optional[str],
     prompt_id: Optional[str],
     single_prompt: Optional[str],
+    adaptive: bool,
+    min_k: int,
+    max_k: int,
+    initial_k: int,
     export_json_path: Optional[str],
     export_markdown_path: Optional[str],
     export_html_path: Optional[str],
@@ -173,7 +184,7 @@ def run_cmd(
     force: bool,
     synthetic: bool
 ):
-    """Run speculative decoding benchmark across parameter sweeps and prompt categories."""
+    """Run speculative decoding benchmark across parameter sweeps, adaptive K, and prompt categories."""
 
     # 1. Parse draft counts K
     try:
@@ -221,7 +232,7 @@ def run_cmd(
 
 
     console.print(f"\n🚀 [bold cyan]Starting Benchmark: Target={target} | Draft={draft}[/bold cyan]")
-    console.print(f"   [dim]Draft Counts (K): {K_values} | Prompts: {len(selected_prompts)} | Repeats: {repeats}[/dim]\n")
+    console.print(f"   [dim]Fixed Sweeps (K): {K_values} | Adaptive: {adaptive} (K∈[{min_k}..{max_k}]) | Prompts: {len(selected_prompts)} | Repeats: {repeats}[/dim]\n")
 
     # Determine if synthetic mode should be used
     is_synthetic = synthetic or not HAS_MLX_LM or "dummy" in target.lower() or "dummy" in draft.lower()
@@ -230,67 +241,127 @@ def run_cmd(
         console.print("⚠️ Running in synthetic evaluation mode for demonstration/testing.\n")
         baseline_runs = []
         runs_by_k = {k: [] for k in K_values}
+        adaptive_runs = [] if adaptive else None
 
         for p in selected_prompts:
-            baseline_runs.append({
+            base_entry = {
                 "prompt_id": p["id"],
+                "category": p["category"],
+                "text": f"Baseline response for prompt {p['id']}",
                 "tps": 25.0,
                 "elapsed_time_s": 2.0,
                 "peak_memory_mb": 4000.0
-            })
+            }
+            baseline_runs.append(base_entry)
+
             for k in K_values:
                 runs_by_k[k].append({
                     "prompt_id": p["id"],
+                    "category": p["category"],
+                    "text": f"Baseline response for prompt {p['id']}",
                     "tps": 25.0 * (1.0 + (k * 0.08)),
                     "alpha": 0.75,
+                    "total_draft_proposed": k * 10,
+                    "accepted_draft_tokens": int(k * 7.5),
+                    "output_tokens": 128,
                     "peak_memory_mb": 4800.0,
                     "elapsed_time_s": 1.5
                 })
 
-        results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs)
+            if adaptive:
+                adaptive_runs.append({
+                    "prompt_id": p["id"],
+                    "category": p["category"],
+                    "text": f"Baseline response for prompt {p['id']}",
+                    "tps": 34.5,
+                    "alpha": 0.78,
+                    "mean_effective_k": 3.4,
+                    "wasted_draft_ratio": 0.18,
+                    "total_draft_proposed": 80,
+                    "accepted_draft_tokens": 62,
+                    "output_tokens": 128,
+                    "k_history": [{"round": 1, "k": 3, "accepted": 2, "alpha_round": 0.67, "next_k": 3}],
+                    "k_selections": [3, 4, 3, 4],
+                    "peak_memory_mb": 4850.0,
+                    "elapsed_time_s": 1.3
+                })
+
+        results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs, adaptive_runs)
 
     else:
         engine = MLXSpeculativeEngine(target, draft)
         engine.load_models()
 
-        # Warmup runs
-        if warmup > 0 and selected_prompts:
-            console.print("🔥 Running Initial Warmup Iterations...")
-            for _ in range(warmup):
-                engine.run_baseline(selected_prompts[0]["prompt"], max_tokens=max_tokens, temp=temp)
-                engine.run_speculative(selected_prompts[0]["prompt"], num_draft_tokens=K_values[0], max_tokens=max_tokens, temp=temp)
-
-        # Baseline Target Runs
-        console.print("📊 Executing Baseline (Non-Speculative) Runs...")
-        baseline_runs = []
-        for p in selected_prompts:
-            for _ in range(repeats):
-                res = engine.run_baseline(p["prompt"], max_tokens=max_tokens, temp=temp)
-                res["prompt_id"] = p["id"]
-                res["category"] = p["category"]
-                baseline_runs.append(res)
-
-        # Speculative Runs across K
-        runs_by_k = {}
-
-        for k in K_values:
-            console.print(f"⚡ Executing Speculative Runs for K={k}...")
-            
-            # K-specific warmup to trigger Metal compile for sequence length shape K
+        try:
+            # Warmup runs across baseline, all K shapes, and adaptive
             if warmup > 0 and selected_prompts:
-                engine.run_speculative(selected_prompts[0]["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
-            
-            k_runs = []
+                console.print("🔥 Running Initial Warmup Iterations (Compiling Metal GPU Shaders)...")
+                warm_prompt = selected_prompts[0]["prompt"]
+                for _ in range(warmup):
+                    engine.run_baseline(warm_prompt, max_tokens=min(32, max_tokens), temp=temp)
+                    # Warm up all possible K values to prevent dynamic shape compilation spikes
+                    all_possible_k = sorted(list(set(K_values + list(range(min_k, max_k + 1)))))
+                    for k_val in all_possible_k:
+                        engine.run_speculative(warm_prompt, num_draft_tokens=k_val, max_tokens=min(32, max_tokens), temp=temp)
+                    if adaptive:
+                        engine.run_adaptive_speculative(warm_prompt, min_k=min_k, max_k=max_k, initial_k=initial_k, max_tokens=min(32, max_tokens), temp=temp)
+
+            # 1. Baseline Target Runs
+            console.print("📊 Executing Baseline (Non-Speculative) Runs...")
+            baseline_runs = []
             for p in selected_prompts:
                 for _ in range(repeats):
-                    res = engine.run_speculative(p["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
+                    res = engine.run_baseline(p["prompt"], max_tokens=max_tokens, temp=temp)
                     res["prompt_id"] = p["id"]
                     res["category"] = p["category"]
-                    k_runs.append(res)
-            runs_by_k[k] = k_runs
+                    baseline_runs.append(res)
+
+            # 2. Fixed Speculative Runs across K
+            runs_by_k = {}
+            for k in K_values:
+                console.print(f"⚡ Executing Fixed Speculative Runs for K={k}...")
+                k_runs = []
+                for p in selected_prompts:
+                    for _ in range(repeats):
+                        res = engine.run_speculative(p["prompt"], num_draft_tokens=k, max_tokens=max_tokens, temp=temp)
+                        res["prompt_id"] = p["id"]
+                        res["category"] = p["category"]
+                        k_runs.append(res)
+                runs_by_k[k] = k_runs
+
+            # 3. Adaptive Speculative Runs
+            adaptive_runs = []
+            if adaptive:
+                console.print(f"🧠 Executing Adaptive Speculative Runs (Dynamic K∈[{min_k}..{max_k}])...")
+                for p in selected_prompts:
+                    for _ in range(repeats):
+                        res = engine.run_adaptive_speculative(
+                            p["prompt"],
+                            min_k=min_k,
+                            max_k=max_k,
+                            initial_k=initial_k,
+                            max_tokens=max_tokens,
+                            temp=temp
+                        )
+                        res["prompt_id"] = p["id"]
+                        res["category"] = p["category"]
+                        adaptive_runs.append(res)
+            else:
+                adaptive_runs = None
+
+            results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs, adaptive_runs)
+
+        except ValueError as e:
+            if "trimmable prompt cache" in str(e):
+                console.print(f"\n❌ [bold red]Architecture Incompatibility:[/bold red] {e}")
+                console.print("\n💡 [yellow]Explanation:[/yellow] Speculative decoding requires rewinding the KV cache when draft tokens are rejected.")
+                console.print("   This model architecture uses [cyan]ArraysCache[/cyan] (recurrent/sliding window cache) which does not yet support cache trimming in MLX.")
+                console.print("   Please use models with standard trimmable transformer attention (e.g. [bold cyan]Qwen2.5[/bold cyan], [bold cyan]Qwen2.5-Coder[/bold cyan], [bold cyan]Llama-3.2[/bold cyan], or [bold cyan]DeepSeek-R1-Distill-Qwen[/bold cyan]).\n")
+                sys.exit(1)
+            else:
+                raise e
 
 
-        results = aggregate_benchmark_results(target, draft, K_values, runs_by_k, baseline_runs)
 
     # Render TUI table summary
     render_tui_summary(results)

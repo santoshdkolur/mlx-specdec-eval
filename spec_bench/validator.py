@@ -62,8 +62,12 @@ def validate_system_environment() -> Dict[str, Any]:
 def resolve_model_size_gb(model_path_or_id: str) -> float:
     """
     Estimates the model weight size in GB.
-    Supports both local directory paths and Hugging Face Hub repository IDs.
+    Supports local directory paths, Hugging Face Hub metadata API,
+    and dynamic parameter/quantization regex extraction.
     """
+    import re
+
+    # 1. Local directory check
     path = Path(model_path_or_id)
     if path.exists() and path.is_dir():
         total_bytes = sum(
@@ -71,9 +75,10 @@ def resolve_model_size_gb(model_path_or_id: str) -> float:
             for f in path.rglob("*")
             if f.is_file() and f.suffix in ['.safetensors', '.npz', '.bin', '.pt']
         )
-        return total_bytes / (1024 ** 3)
+        if total_bytes > 0:
+            return round(total_bytes / (1024 ** 3), 2)
 
-    # Attempt HF Hub metadata lookup if HF Hub API is available
+    # 2. Attempt HF Hub metadata lookup if HF Hub API is available
     if HAS_HF_HUB:
         try:
             api = HfApi()
@@ -87,21 +92,26 @@ def resolve_model_size_gb(model_path_or_id: str) -> float:
                     if size:
                         total_bytes += size
             if total_bytes > 0:
-                return total_bytes / (1024 ** 3)
+                return round(total_bytes / (1024 ** 3), 2)
         except Exception:
             pass
 
-    # Dynamic fallback estimate based on model size hints in repo name
+    # 3. Dynamic parameter & quantization extraction (e.g. 0.8b, 2b, 9b, 14b, 4bit, 8bit)
     lower_id = model_path_or_id.lower()
-    if "1b" in lower_id:
-        return 0.8
-    elif "2b" in lower_id:
-        return 1.2
-    elif "3b" in lower_id:
-        return 1.8
-    elif "7b" in lower_id or "8b" in lower_id:
-        return 4.2
+    param_match = re.search(r'(\d+(?:\.\d+)?)\s*b', lower_id)
+    if param_match:
+        params_b = float(param_match.group(1))
+        if "8bit" in lower_id or "fp8" in lower_id or "int8" in lower_id:
+            bytes_per_param = 1.05
+        elif "16bit" in lower_id or "bf16" in lower_id or "fp16" in lower_id:
+            bytes_per_param = 2.05
+        else:
+            # Default 4-bit quantized MLX weights
+            bytes_per_param = 0.58
+        return round(params_b * bytes_per_param, 2)
+
     return 2.5
+
 
 
 
@@ -194,10 +204,11 @@ def validate_tokenizer_compatibility(target_path: str, draft_path: str) -> Tuple
 def validate_memory_footprint(
     target_path: str,
     draft_path: str,
-    safety_buffer_gb: float = 2.0
+    safety_buffer_gb: float = 1.0
 ) -> Dict[str, Any]:
     """
-    Calculates estimated VRAM/RAM footprint and compares against available Apple Silicon RAM.
+    Calculates estimated VRAM/RAM footprint and compares against Apple Silicon Unified Memory limits.
+    On macOS Apple Silicon, MLX can allocate up to ~85% of total unified RAM.
     """
     ram_info = psutil.virtual_memory()
     available_ram_gb = ram_info.available / (1024 ** 3)
@@ -205,10 +216,11 @@ def validate_memory_footprint(
 
     target_size_gb = resolve_model_size_gb(target_path)
     draft_size_gb = resolve_model_size_gb(draft_path)
-    estimated_kv_cache_gb = 1.0
+    estimated_kv_cache_gb = 0.5
 
-    total_required_gb = target_size_gb + draft_size_gb + estimated_kv_cache_gb + safety_buffer_gb
-    is_safe = available_ram_gb >= total_required_gb
+    total_model_footprint_gb = target_size_gb + draft_size_gb + estimated_kv_cache_gb
+    max_allocatable_ram_gb = total_ram_gb * 0.85
+    is_safe = max_allocatable_ram_gb >= (total_model_footprint_gb + safety_buffer_gb)
 
     return {
         "available_ram_gb": round(available_ram_gb, 2),
@@ -216,7 +228,8 @@ def validate_memory_footprint(
         "target_size_gb": round(target_size_gb, 2),
         "draft_size_gb": round(draft_size_gb, 2),
         "estimated_kv_cache_gb": round(estimated_kv_cache_gb, 2),
-        "safety_buffer_gb": round(safety_buffer_gb, 2),
-        "total_required_gb": round(total_required_gb, 2),
-        "is_safe": is_safe
+        "total_required_gb": round(total_model_footprint_gb, 2),
+        "is_safe": is_safe,
+        "is_tight": available_ram_gb < total_model_footprint_gb
     }
+

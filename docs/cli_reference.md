@@ -57,11 +57,15 @@ Executes speculative decoding benchmarks and baseline comparisons across target 
 * `-t, --target TEXT`: Path or HF Hub repo ID of the target model. **[Required]**
 * `-d, --draft TEXT`: Path or HF Hub repo ID of the draft model. **[Required]**
 * `-k, --num-draft-tokens TEXT`: Comma-separated list of draft token counts to evaluate (e.g. `3,5,7`, default: `5`).
+* `--adaptive / --no-adaptive`: Enable or disable Adaptive $K$ evaluation (default: enabled).
+* `--min-k INTEGER`: Minimum draft tokens for Adaptive $K$ (default: `1`).
+* `--max-k INTEGER`: Maximum draft tokens for Adaptive $K$ (default: `5`).
+* `--initial-k INTEGER`: Initial starting draft tokens for Adaptive $K$ (default: `3`).
 * `--prompt-id TEXT`: Filter evaluation to a single prompt ID (e.g. `code_quicksort`, `reason_math_proof`).
 * `--prompt TEXT`: Run evaluation on a single custom prompt string.
 * `--max-tokens INTEGER`: Maximum tokens to generate per prompt (default: `128`).
 * `--temp FLOAT`: Generation temperature (default: `0.0`).
-* `--warmup INTEGER`: Number of warmup runs prior to timing (default: `1`). Pre-compiles Metal GPU sequence shaders and warms unified memory cache.
+* `--warmup INTEGER`: Number of warmup runs prior to timing (default: `1`). Pre-compiles Metal GPU sequence shaders across all $K$ values and warms unified memory cache.
 * `--repeats INTEGER`: Number of benchmark repeats per prompt (default: `2`). Runs each prompt $N$ times and averages TPS, speedup, and acceptance rates across runs.
 
 * `--category TEXT`: Prompt category to evaluate (`code`, `reasoning`, `chat`, `prose`, or `all`; default: `all`).
